@@ -9,15 +9,15 @@
   <body>
     <header class="app-header">
       <div class="header-left">
-        <div class="currency-selector">
-          <label>Currency:</label>
-          <select id="currencySelect">
-              <option value="USD">USD ($)</option>
-              <option value="KRW">KRW (₩)</option>
-          </select>
-          <span id="conversionRate" class="conversion-rate"></span>
-        </div>
+      <div class="currency-selector">
+        <label>Currency:</label>
+        <select id="currencySelect">
+            <option value="USD">USD ($)</option>
+            <option value="KRW">KRW (₩)</option>
+        </select>
+        <span id="conversionRate" class="conversion-rate"></span>
       </div>
+        </div>
       <nav class="nav">
         <a href="./calendar.html">Weekly Calendar</a>
         <a href="./students.html">Students</a>
@@ -354,7 +354,7 @@
             
             // Only count if hours calculation is valid and positive
             if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
-              byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
+          byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
             }
           } catch (error) {
             // Skip this session if calculation fails
@@ -440,8 +440,8 @@
         // Loop through all weeks and check each session's actual date
         const allWeeks = Storage.getAllWeeks();
         allWeeks.forEach(wk => {
-          const weekSessions = Storage.getSessionsByWeek(wk);
-          weekSessions.forEach(s => {
+            const weekSessions = Storage.getSessionsByWeek(wk);
+            weekSessions.forEach(s => {
             // Skip if missing required data
             if (!s.studentId || !s.startTime || !s.endTime) {
               return;
@@ -471,11 +471,11 @@
                   const rate = st.rate || 0;
                   const studentCurrency = st.currency || 'USD';
           
-                  // Convert student rate to USD for calculation
-                  let rateUSD = rate;
-                  if (studentCurrency === 'KRW') {
-                    rateUSD = rate / currentExchangeRate;
-                  }
+              // Convert student rate to USD for calculation
+              let rateUSD = rate;
+              if (studentCurrency === 'KRW') {
+                rateUSD = rate / currentExchangeRate;
+          }
           
                   // Calculate earnings for this session: hours × rate
                   const sessionEarningsUSD = hrs * rateUSD;
@@ -578,11 +578,16 @@
       });
 
       // Add Class Earnings Modal
-      document.getElementById('addClassEarningsBtn').addEventListener('click', () => {
-        openAddClassEarningsModal();
-      });
+      const addClassEarningsBtn = document.getElementById('addClassEarningsBtn');
+      if (addClassEarningsBtn) {
+        addClassEarningsBtn.addEventListener('click', () => {
+          console.log('Add Class Earnings button clicked');
+          openAddClassEarningsModal();
+        });
+      }
       
       function openAddClassEarningsModal() {
+        console.log('openAddClassEarningsModal called');
         const allWeeks = Storage.getAllWeeks();
         const students = Storage.getStudents();
         const studentsMap = {};
