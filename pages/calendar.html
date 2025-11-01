@@ -161,10 +161,10 @@
             row.appendChild(studentCell);
             
             // Day cells
-            days.forEach(d => {
-              const cell = document.createElement('td');
+          days.forEach(d => {
+            const cell = document.createElement('td');
               cell.className = 'day-cell';
-              cell.dataset.dateIso = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+            cell.dataset.dateIso = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
               cell.dataset.studentId = student.id;
               
               // Find sessions for this student on this day
@@ -214,11 +214,10 @@
       modalBackdrop.innerHTML = `
         <div class="modal">
           <header><strong>Edit Class</strong><button id="closeModal" class="ghost">✕</button></header>
+          <div style="margin-bottom:8px; padding:8px; background:#f8f9fa; border-radius:4px" id="modalClassTitle">
+            <!-- Class title will be displayed here -->
+          </div>
           <div class="grid-2">
-            <div>
-              <label>Title</label>
-              <input id="mTitle" />
-            </div>
             <div>
               <label>Date</label>
               <input id="mDate" type="date" />
@@ -254,7 +253,13 @@
         const idx = sessions.findIndex(s => s.id === sessionId);
         if (idx < 0) return;
         const s = sessions[idx];
-        document.getElementById('mTitle').value = s.title || '';
+        
+        // Display class title (read-only, auto-numbered)
+        const titleElement = document.getElementById('modalClassTitle');
+        if (titleElement) {
+          titleElement.innerHTML = `<strong>${s.title || 'Class'}</strong>`;
+        }
+        
         document.getElementById('mDate').value = s.dateISO.slice(0,10);
         document.getElementById('mStart').value = s.startTime || '';
         document.getElementById('mEnd').value = s.endTime || '';
@@ -278,7 +283,7 @@
           // Use the date string directly to avoid timezone issues
           const updatedDateISO = `${newDate}T00:00:00.000Z`;
           const updated = { ...s,
-            title: document.getElementById('mTitle').value,
+            // Keep the original title (auto-numbered, don't allow editing)
             dateISO: updatedDateISO,
             startTime: document.getElementById('mStart').value,
             endTime: document.getElementById('mEnd').value,
@@ -328,7 +333,7 @@
       document.getElementById('todayBtn').addEventListener('click', () => { 
         currentWeekSunday = App.getSunday(new Date()); 
         renderWeekLabel(); 
-        renderTable();
+        renderTable(); 
         updateWeekSelector();
       });
       

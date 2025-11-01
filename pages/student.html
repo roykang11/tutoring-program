@@ -35,10 +35,6 @@
         <h3>Add Class</h3>
         <div class="form-stack">
           <div>
-            <label>Title</label>
-            <input id="cTitle" placeholder="" />
-          </div>
-          <div>
             <label>Date</label>
             <input id="cDate" type="date" />
           </div>
@@ -296,7 +292,6 @@
 
       // add class form
       document.getElementById('addClassBtn').addEventListener('click', () => {
-        const title = document.getElementById('cTitle').value.trim() || `Class #${getNextClassNumber()}`;
         const date = document.getElementById('cDate').value;
         const start = document.getElementById('cStart').value;
         const end = document.getElementById('cEnd').value;
@@ -304,6 +299,9 @@
         const notes = document.getElementById('cNotes').value;
         if (!date) return alert('Select a date');
         if (!start || !end) return alert('Please enter both start and end times');
+        
+        // Automatically generate class number for this student
+        const title = `Class #${getNextClassNumber()}`;
         
         // Use the date string directly (YYYY-MM-DD format from date input)
         // This avoids timezone conversion issues
@@ -327,14 +325,12 @@
         sessions.push(newSession);
         Storage.saveSessionsByWeek(wk, sessions);
         
-        document.getElementById('cTitle').value = '';
         document.getElementById('cDate').value = '';
         document.getElementById('cStart').value = '';
         document.getElementById('cEnd').value = '';
         document.getElementById('cMaterials').value = '';
         document.getElementById('cNotes').value = '';
         renderSessions();
-        updateClassPlaceholder();
       });
 
       function getNextClassNumber() {
@@ -343,14 +339,6 @@
         const studentSessions = allSessions.filter(s => s.studentId === studentId);
         return studentSessions.length + 1;
       }
-
-      function updateClassPlaceholder() {
-        const nextNumber = getNextClassNumber();
-        document.getElementById('cTitle').placeholder = `Class #${nextNumber}`;
-      }
-
-      // Update placeholder when page loads and after adding classes
-      updateClassPlaceholder();
 
       // Auto-focus time inputs when typing
       document.addEventListener('keydown', (e) => {
@@ -393,16 +381,26 @@
       }
 
       function openClassEditModal(session, weekKey, sessionIndex) {
+        // Get class number for this session
+        const weeks = Storage.getAllWeeks();
+        const allSessions = weeks.flatMap(w => Storage.getSessionsByWeek(w));
+        const studentSessions = allSessions.filter(s => s.studentId === session.studentId);
+        const sortedByCreation = studentSessions.sort((a, b) => {
+          const aTime = parseInt(a.id.split('_')[1]) || 0;
+          const bTime = parseInt(b.id.split('_')[1]) || 0;
+          return aTime - bTime;
+        });
+        const classNum = sortedByCreation.findIndex(s => s.id === session.id) + 1;
+        
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
         modalBackdrop.innerHTML = `
         <div class="modal">
             <header><strong>Edit Class</strong><button id="closeClassEdit" class="ghost">✕</button></header>
-            <div class="grid-2" style="gap:16px">
-            <div>
-              <label>Title</label>
-                <input id="editTitle" value="${session.title || ''}" />
+            <div style="margin-bottom:8px; padding:8px; background:#f8f9fa; border-radius:4px">
+              <strong>${session.title || `Class #${classNum}`}</strong>
             </div>
+            <div class="grid-2" style="gap:16px">
             <div>
               <label>Date</label>
                 <input id="editDate" type="date" value="${session.dateISO.slice(0,10)}" />
@@ -462,7 +460,7 @@
           // Update the session
           const updatedSession = {
             ...sessions[sessionIndex],
-            title: document.getElementById('editTitle').value.trim(),
+            // Keep the original title (auto-numbered, don't allow editing)
             dateISO: updatedDateISO,
             startTime: document.getElementById('editStart').value,
             endTime: document.getElementById('editEnd').value,
