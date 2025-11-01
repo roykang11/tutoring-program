@@ -270,16 +270,24 @@
         };
         const onSave = () => {
           const newDate = document.getElementById('mDate').value;
+          if (!newDate) {
+            alert('Please select a date');
+            return;
+          }
+          
+          // Use the date string directly to avoid timezone issues
+          const updatedDateISO = `${newDate}T00:00:00.000Z`;
           const updated = { ...s,
             title: document.getElementById('mTitle').value,
-            dateISO: new Date(newDate + 'T00:00').toISOString(),
+            dateISO: updatedDateISO,
             startTime: document.getElementById('mStart').value,
             endTime: document.getElementById('mEnd').value,
             materials: document.getElementById('mMaterials').value,
             notes: document.getElementById('mNotes').value,
           };
-          // Move between weeks if date changed
-          const newWeekKey = App.getWeekKey(new Date(updated.dateISO));
+          // Move between weeks if date changed - use date object with noon to avoid timezone edge cases
+          const dateObjForWeek = new Date(newDate + 'T12:00:00');
+          const newWeekKey = App.getWeekKey(dateObjForWeek);
           if (newWeekKey !== weekKey) {
             sessions.splice(idx, 1);
             Storage.saveSessionsByWeek(weekKey, sessions);

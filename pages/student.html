@@ -250,13 +250,11 @@
         if (!date) return alert('Select a date');
         if (!start || !end) return alert('Please enter both start and end times');
         
-        // Create date ISO string properly - use local timezone
-        const dateObj = new Date(date + 'T00:00');
-        // Get date in YYYY-MM-DD format for consistent storage
-        const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        const dateISO = `${year}-${month}-${day}T00:00:00.000Z`;
+        // Use the date string directly (YYYY-MM-DD format from date input)
+        // This avoids timezone conversion issues
+        const dateISO = `${date}T00:00:00.000Z`;
+        // Create a date object for week key calculation using local timezone
+        const dateObj = new Date(date + 'T12:00:00'); // Use noon to avoid timezone edge cases
         const wk = App.getWeekKey(dateObj);
         
         const sessions = Storage.getSessionsByWeek(wk);
@@ -391,17 +389,44 @@
         
         // Save handler
         document.getElementById('saveClassEdit').addEventListener('click', () => {
+          const editDate = document.getElementById('editDate').value;
+          if (!editDate) {
+            alert('Please select a date');
+            return;
+          }
+          
           const sessions = Storage.getSessionsByWeek(weekKey);
-          sessions[sessionIndex] = {
+          // Use the date string directly to avoid timezone issues
+          const updatedDateISO = `${editDate}T00:00:00.000Z`;
+          
+          // If the week changed, we need to move the session to the correct week
+          const dateObjForWeek = new Date(editDate + 'T12:00:00'); // Use noon to avoid timezone edge cases
+          const newWeekKey = App.getWeekKey(dateObjForWeek);
+          
+          // Update the session
+          const updatedSession = {
             ...sessions[sessionIndex],
             title: document.getElementById('editTitle').value.trim(),
-            dateISO: new Date(document.getElementById('editDate').value + 'T00:00').toISOString(),
+            dateISO: updatedDateISO,
             startTime: document.getElementById('editStart').value,
             endTime: document.getElementById('editEnd').value,
             materials: document.getElementById('editMaterials').value,
             notes: document.getElementById('editNotes').value
           };
-          Storage.saveSessionsByWeek(weekKey, sessions);
+          
+          // If week changed, move session to new week
+          if (newWeekKey !== weekKey) {
+            sessions.splice(sessionIndex, 1);
+            Storage.saveSessionsByWeek(weekKey, sessions);
+            
+            const newWeekSessions = Storage.getSessionsByWeek(newWeekKey);
+            newWeekSessions.push(updatedSession);
+            Storage.saveSessionsByWeek(newWeekKey, newWeekSessions);
+          } else {
+            sessions[sessionIndex] = updatedSession;
+            Storage.saveSessionsByWeek(weekKey, sessions);
+          }
+          
           document.body.removeChild(modalBackdrop);
           renderSessions();
         });
