@@ -159,18 +159,63 @@
           return;
         }
         const byStudent = new Map();
+        const sessionsWithoutTimes = [];
         sessions.forEach(s => {
-          if (!s.startTime || !s.endTime) return; // Skip sessions without times
-          const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime || '00:00'}`, `${s.dateISO.slice(0,10)}T${s.endTime || '00:00'}`);
+          let hrs = 0;
+          
+          // Calculate hours if start and end times are available
+          if (s.startTime && s.endTime) {
+            hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+          } else if (s.startTime) {
+            // If only start time, assume 1 hour default
+            hrs = 1;
+          } else if (s.endTime) {
+            // If only end time, assume 1 hour default
+            hrs = 1;
+          } else {
+            // No times at all - use default 1 hour duration
+            hrs = 1;
+            sessionsWithoutTimes.push(s);
+          }
+          
           if (hrs > 0) {
             byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
           }
         });
+        
         if (byStudent.size === 0) {
-          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No valid sessions with time data for this week.</td></tr>';
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week. Add sessions in the calendar.</td></tr>';
           document.getElementById('netTotal').textContent = formatCurrency(0);
           document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
           return;
+        }
+        
+        // Remove any existing warnings
+        const existingWarning = document.querySelector('.time-warning');
+        if (existingWarning) {
+          existingWarning.remove();
+        }
+        
+        // Show warning if there are sessions without times (using default 1 hour)
+        if (sessionsWithoutTimes.length > 0) {
+          const warningDiv = document.createElement('div');
+          warningDiv.className = 'card time-warning';
+          warningDiv.style.marginTop = '16px';
+          warningDiv.style.background = '#fff3cd';
+          warningDiv.style.borderColor = '#ffc107';
+          warningDiv.style.borderWidth = '1px';
+          warningDiv.style.borderStyle = 'solid';
+          warningDiv.style.padding = '12px 16px';
+          warningDiv.style.fontSize = '13px';
+          warningDiv.style.color = '#856404';
+          warningDiv.innerHTML = `⚠️ ${sessionsWithoutTimes.length} session(s) without time data - using 1 hour default. Please add start/end times in the calendar.`;
+          const container = document.querySelector('.container');
+          const lastCard = container.querySelector('.card:last-of-type');
+          if (lastCard) {
+            container.insertBefore(warningDiv, lastCard);
+          } else {
+            container.appendChild(warningDiv);
+          }
         }
         let net = 0;
         body.innerHTML = Array.from(byStudent.entries()).map(([sid, hrs]) => {
@@ -239,8 +284,17 @@
             const weekSessions = Storage.getSessionsByWeek(wk);
             const weekByStudent = new Map();
             weekSessions.forEach(s => {
-              const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime || '00:00'}`, `${s.dateISO.slice(0,10)}T${s.endTime || '00:00'}`);
-              weekByStudent.set(s.studentId, (weekByStudent.get(s.studentId) || 0) + hrs);
+              let hrs = 0;
+              // Calculate hours if start and end times are available
+              if (s.startTime && s.endTime) {
+                hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+              } else {
+                // Default to 1 hour if times are missing
+                hrs = 1;
+              }
+              if (hrs > 0) {
+                weekByStudent.set(s.studentId, (weekByStudent.get(s.studentId) || 0) + hrs);
+              }
             });
             weekByStudent.forEach((hrs, sid) => {
               const st = map[sid];
@@ -251,7 +305,7 @@
               let rateUSD = rate;
               if (studentCurrency === 'KRW') {
                 rateUSD = rate / currentExchangeRate;
-          }
+              }
           
               grandTotal += hrs * rateUSD;
             });
