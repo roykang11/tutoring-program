@@ -170,11 +170,15 @@
               // Find sessions for this student on this day
               const daySessions = sessions.filter(s => {
                 if (s.studentId !== student.id) return false;
-                const sessionDate = new Date(s.dateISO);
+                // Parse date directly from ISO string to avoid timezone conversion
+                const sessionDateStr = s.dateISO.slice(0, 10); // YYYY-MM-DD
+                const sessionYear = parseInt(sessionDateStr.slice(0, 4));
+                const sessionMonth = parseInt(sessionDateStr.slice(5, 7)) - 1; // Month is 0-indexed
+                const sessionDay = parseInt(sessionDateStr.slice(8, 10));
+                const sessionDate = new Date(sessionYear, sessionMonth, sessionDay);
                 // Normalize both dates to midnight for comparison
-                const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
                 const dayToMatch = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                return sessionDay.getTime() === dayToMatch.getTime();
+                return sessionDate.getTime() === dayToMatch.getTime();
               });
               
               // Display sessions in the cell
