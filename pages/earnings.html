@@ -418,9 +418,8 @@
           return `<tr><td>${colorDot}${studentName}</td><td>${hrs.toFixed(2)}</td><td>${formatCurrency(displayRate)}</td><td>${formatCurrency(displayTotal)}</td></tr>`;
         }).join('');
           
-        // Show both USD and KRW for net total
-        const netKRW = Math.round(net * currentExchangeRate);
-        document.getElementById('netTotal').textContent = `${formatCurrency(net)} (₩${netKRW.toLocaleString()})`;
+        // Show net total in selected currency
+        document.getElementById('netTotal').textContent = formatCurrency(net);
         // Format week key for display
         const weekDateStr = weekKey.replace('week:', '');
         const weekDate = new Date(weekDateStr + 'T00:00');
