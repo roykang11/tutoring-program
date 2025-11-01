@@ -402,27 +402,24 @@
             return st !== undefined;
           })
           .map(([sid, hrs]) => {
-            const st = map[sid];
-            const rate = (st?.rate) || 0;
-            const studentCurrency = st?.currency || 'USD';
-              
-            // Convert student rate to USD for calculation
-            let rateUSD = rate;
-            if (studentCurrency === 'KRW') {
-              rateUSD = rate / currentExchangeRate;
-              }
-              
-            const totalUSD = hrs * rateUSD;
-            net += totalUSD;
+          const st = map[sid];
+          const rate = (st?.rate) || 0;
+          const studentCurrency = st?.currency || 'USD';
             
-            // Format display based on selected currency
-            const displayRate = selectedCurrency === 'KRW' ? rateUSD * currentExchangeRate : rateUSD;
-            const displayTotal = selectedCurrency === 'KRW' ? totalUSD * currentExchangeRate : totalUSD;
+          // Convert student rate to USD for calculation
+          let rateUSD = rate;
+          if (studentCurrency === 'KRW') {
+            rateUSD = rate / currentExchangeRate;
+            }
             
+          const totalUSD = hrs * rateUSD;
+          net += totalUSD;
+          
+            // formatCurrency expects USD amounts and will convert based on selectedCurrency
             const studentName = st?.name || sid;
             const colorDot = st?.color ? `<span class="color-dot" style="background:${st.color}; margin-right: 8px;"></span>` : '';
-            return `<tr><td>${colorDot}${studentName}</td><td>${hrs.toFixed(2)}</td><td>${formatCurrency(displayRate)}</td><td>${formatCurrency(displayTotal)}</td></tr>`;
-          }).join('');
+            return `<tr><td>${colorDot}${studentName}</td><td>${hrs.toFixed(2)}</td><td>${formatCurrency(rateUSD)}</td><td>${formatCurrency(totalUSD)}</td></tr>`;
+        }).join('');
           
         // Show net total in selected currency
         document.getElementById('netTotal').textContent = formatCurrency(net);
@@ -501,12 +498,12 @@
           });
         });
         
-        // Display total in KRW (always in Won)
-        const totalAmountWon = grandTotalUSD * currentExchangeRate;
-        animateCounter(document.getElementById('totalEarnings'), totalAmountWon);
+        // Display total in selected currency
+        const totalAmount = selectedCurrency === 'KRW' ? grandTotalUSD * currentExchangeRate : grandTotalUSD;
+        animateCounter(document.getElementById('totalEarnings'), totalAmount, selectedCurrency);
       }
       
-      function animateCounter(element, target) {
+      function animateCounter(element, target, currency = 'USD') {
         const start = 0;
         const duration = 2000;
         const startTime = performance.now();
@@ -517,7 +514,11 @@
           const easeOut = 1 - Math.pow(1 - progress, 3);
           const current = start + (target - start) * easeOut;
           
+          if (currency === 'KRW') {
           element.textContent = `₩${Math.floor(current).toLocaleString()}`;
+          } else {
+            element.textContent = `$${current.toFixed(2)}`;
+          }
           
           if (progress < 1) {
             requestAnimationFrame(update);
@@ -1066,7 +1067,62 @@
         selectedCurrency = e.target.value;
         updateConversionRateDisplay();
         render();
+        // Recalculate monthly total with new currency
+        const grandTotalUSD = calculateMonthlyTotal();
+        const totalAmount = selectedCurrency === 'KRW' ? grandTotalUSD * currentExchangeRate : grandTotalUSD;
+        animateCounter(document.getElementById('totalEarnings'), totalAmount, selectedCurrency);
       });
+      
+      function calculateMonthlyTotal() {
+        // Calculate total earnings for this month - sum all session earnings
+        let grandTotalUSD = 0;
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        
+        const allWeeks = Storage.getAllWeeks();
+        allWeeks.forEach(weekKey => {
+          const sessions = Storage.getSessionsByWeek(weekKey);
+          if (!sessions) return;
+          
+          sessions.forEach(s => {
+            if (!s.studentId || !s.startTime || !s.endTime) return;
+            
+            // Parse date from dateISO
+            const sessionDateStr = s.dateISO.slice(0, 10); // YYYY-MM-DD
+            const sessionYear = parseInt(sessionDateStr.slice(0, 4));
+            const sessionMonth = parseInt(sessionDateStr.slice(5, 7)) - 1; // Month is 0-indexed
+            
+            // Check if session is in current month
+            if (sessionYear === currentYear && sessionMonth === currentMonth) {
+              try {
+                const students = Storage.getStudents();
+                const student = students.find(st => st.id === s.studentId);
+                if (!student) return;
+                
+                const dateStr = s.dateISO.slice(0, 10);
+                const hrs = App.hoursBetween(`${dateStr}T${s.startTime}`, `${dateStr}T${s.endTime}`);
+                if (hrs <= 0 || isNaN(hrs) || !isFinite(hrs)) return;
+                
+                const rate = student.rate || 0;
+                const studentCurrency = student.currency || 'USD';
+                
+                // Convert student rate to USD for calculation
+                let rateUSD = rate;
+                if (studentCurrency === 'KRW') {
+                  rateUSD = rate / currentExchangeRate;
+                }
+                
+                grandTotalUSD += hrs * rateUSD;
+              } catch (error) {
+                // Skip this session if calculation fails
+              }
+            }
+          });
+        });
+        
+        return grandTotalUSD;
+      }
 
       // Initialize
       init();
