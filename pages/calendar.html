@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weekly Calendar</title>
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <div class="date-nav">
+          <button id="prevWeek" class="nav-btn">‹</button>
+          <span id="currentWeek" class="current-week">October 2025</span>
+          <button id="nextWeek" class="nav-btn">›</button>
+          <button id="todayBtn" class="today-btn">Today</button>
+        </div>
+        <div class="week-selector" style="margin-left: 24px;">
+          <label for="weekSelect" style="font-size: 13px; color: var(--muted); margin-right: 8px; font-weight: 500;">Week:</label>
+          <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; min-width: 200px;">
+            <option value="">Select a week...</option>
+          </select>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="./calendar.html">Weekly Calendar</a>
+        <a href="./students.html">Students</a>
+        <a href="./earnings.html">Earnings</a>
+      </nav>
+    </header>
+    <main class="calendar-container">
+      <div class="calendar-grid">
+        <table id="calendarTable">
+          <thead id="calendarHead"></thead>
+          <tbody id="calendarBody"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script src="../js/globals.js"></script>
+    <script>
+
+      const currentWeek = document.getElementById('currentWeek');
+      const head = document.getElementById('calendarHead');
+      const body = document.getElementById('calendarBody');
+      const weekSelect = document.getElementById('weekSelect');
+
+      let currentWeekSunday = App.getSunday(new Date());
+
+      function renderWeekLabel() {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const sunday = App.getSunday(currentWeekSunday);
+        const saturday = App.addDays(sunday, 6);
+        
+        // Format as "Oct 27 - Nov 2, 2025" or "Oct 27 - Oct 31, 2025" if same month
+        if (sunday.getMonth() === saturday.getMonth()) {
+          currentWeek.textContent = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        } else {
+          currentWeek.textContent = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        }
+      }
+
+      function populateWeekSelector() {
+        const allWeeks = Storage.getAllWeeks();
+        const currentWeekKey = App.getWeekKey(currentWeekSunday);
+        
+        // Generate weeks for the past year and next year
+        const weeks = [];
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setFullYear(today.getFullYear() - 1);
+        startDate.setDate(1); // Start from beginning of month
+        
+        // Generate all weeks from a year ago to a year ahead
+        let currentDate = App.getSunday(startDate);
+        const endDate = new Date(today);
+        endDate.setFullYear(today.getFullYear() + 1);
+        endDate.setMonth(11, 31);
+        
+        while (currentDate <= endDate) {
+          const weekKey = App.getWeekKey(currentDate);
+          const weekLabel = formatWeekLabel(currentDate);
+          weeks.push({ key: weekKey, label: weekLabel, date: new Date(currentDate) });
+          currentDate = App.addDays(currentDate, 7);
+        }
+        
+        weekSelect.innerHTML = '<option value="">Select a week...</option>';
+        weeks.forEach(week => {
+          const option = document.createElement('option');
+          option.value = week.key;
+          option.textContent = week.label;
+          if (week.key === currentWeekKey) {
+            option.selected = true;
+          }
+          weekSelect.appendChild(option);
+        });
+      }
+
+      function formatWeekLabel(date) {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const sunday = App.getSunday(date);
+        const saturday = App.addDays(sunday, 6);
+        
+        // If same month, show: "Oct 27 - Nov 2, 2025"
+        // If different months, show: "Oct 27 - Nov 2, 2025"
+        if (sunday.getMonth() === saturday.getMonth()) {
+          return `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        } else {
+          return `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        }
+      }
+
+      function renderTable() {
+        // header
+        const days = Array.from({ length: 7 }, (_, i) => App.addDays(currentWeekSunday, i));
+        head.innerHTML = '';
+        const tr = document.createElement('tr');
+        
+        // First column: "Student"
+        const thStudent = document.createElement('th');
+        thStudent.textContent = 'Student';
+        thStudent.className = 'student-header-col';
+        tr.appendChild(thStudent);
+        
+        // Day columns
+        days.forEach(d => {
+          const th = document.createElement('th');
+          const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
+          const monthName = d.toLocaleDateString(undefined, { month: 'short' });
+          const dayNum = d.getDate();
+          th.innerHTML = `${dayName}, ${monthName} ${dayNum}`;
+          tr.appendChild(th);
+        });
+        head.appendChild(tr);
+
+        // body - one row per student
+        body.innerHTML = '';
+        const students = Storage.getStudents();
+        const sessions = Storage.getSessionsByWeek(App.getWeekKey(currentWeekSunday));
+        const studentsById = Object.fromEntries(students.map(s => [s.id, s]));
+
+        if (students.length === 0) {
+          // Show message when no students
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 8;
+          cell.className = 'no-students-message';
+          cell.textContent = 'No students yet. Use the inputs above to add one.';
+          row.appendChild(cell);
+          body.appendChild(row);
+        } else {
+          // Create a row for each student
+          students.forEach(student => {
+            const row = document.createElement('tr');
+            
+            // Student name cell
+            const studentCell = document.createElement('td');
+            studentCell.className = 'student-col-cell';
+            studentCell.innerHTML = `<span class="color-dot" style="background:${student.color || '#c7d2fe'}"></span>${student.name}`;
+            row.appendChild(studentCell);
+            
+            // Day cells
+            days.forEach(d => {
+              const cell = document.createElement('td');
+              cell.className = 'day-cell';
+              cell.dataset.dateIso = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+              cell.dataset.studentId = student.id;
+              
+              // Find sessions for this student on this day
+              const daySessions = sessions.filter(s => {
+                if (s.studentId !== student.id) return false;
+                const sessionDate = new Date(s.dateISO);
+                return sessionDate.getDate() === d.getDate() && 
+                       sessionDate.getMonth() === d.getMonth() && 
+                       sessionDate.getFullYear() === d.getFullYear();
+              });
+              
+              // Display sessions in the cell
+              if (daySessions.length > 0) {
+                daySessions.forEach(session => {
+                  const sessionDiv = document.createElement('div');
+                  sessionDiv.className = 'session-pill';
+                  sessionDiv.style.backgroundColor = `${student.color || '#3b82f6'}22`;
+                  sessionDiv.style.borderLeft = `3px solid ${student.color || '#3b82f6'}`;
+                  sessionDiv.style.cursor = 'pointer';
+                  
+                  const timeStr = session.startTime && session.endTime 
+                    ? `${session.startTime}–${session.endTime}` 
+                    : (session.startTime || session.endTime || '');
+                  
+                  sessionDiv.innerHTML = `
+                    <div style="font-weight: 500; margin-bottom: 2px;">${session.title || 'Class'}</div>
+                    ${timeStr ? `<div style="font-size: 11px; color: #6b7280;">${timeStr}</div>` : ''}
+                  `;
+                  
+                  sessionDiv.addEventListener('click', () => openModalFor(session.id));
+                  cell.appendChild(sessionDiv);
+                });
+              }
+              
+              row.appendChild(cell);
+            });
+            
+            body.appendChild(row);
+          });
+        }
+      }
+
+      // Modal for editing a class
+      const modalBackdrop = document.createElement('div');
+      modalBackdrop.className = 'modal-backdrop';
+      modalBackdrop.innerHTML = `
+        <div class="modal">
+          <header><strong>Edit Class</strong><button id="closeModal" class="ghost">✕</button></header>
+          <div class="grid-2">
+            <div>
+              <label>Title</label>
+              <input id="mTitle" />
+            </div>
+            <div>
+              <label>Date</label>
+              <input id="mDate" type="date" />
+            </div>
+            <div>
+              <label>Start</label>
+              <input id="mStart" type="time" />
+            </div>
+            <div>
+              <label>End</label>
+              <input id="mEnd" type="time" />
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <label>Material covered</label>
+            <textarea id="mMaterials" rows="3"></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <label>Notes</label>
+            <textarea id="mNotes" rows="3"></textarea>
+          </div>
+          <footer>
+            <button id="deleteClass" class="ghost">Delete</button>
+            <div class="spacer"></div>
+            <button id="saveClass">Save</button>
+          </footer>
+        </div>`;
+      document.body.appendChild(modalBackdrop);
+
+      function openModalFor(sessionId) {
+        const weekKey = App.getWeekKey(currentWeekSunday);
+        const sessions = Storage.getSessionsByWeek(weekKey);
+        const idx = sessions.findIndex(s => s.id === sessionId);
+        if (idx < 0) return;
+        const s = sessions[idx];
+        document.getElementById('mTitle').value = s.title || '';
+        document.getElementById('mDate').value = s.dateISO.slice(0,10);
+        document.getElementById('mStart').value = s.startTime || '';
+        document.getElementById('mEnd').value = s.endTime || '';
+        document.getElementById('mMaterials').value = s.materials || '';
+        document.getElementById('mNotes').value = s.notes || '';
+        modalBackdrop.style.display = 'flex';
+
+        const close = () => { modalBackdrop.style.display = 'none'; cleanup(); };
+        const cleanup = () => {
+          document.getElementById('closeModal').removeEventListener('click', close);
+          document.getElementById('saveClass').removeEventListener('click', onSave);
+          document.getElementById('deleteClass').removeEventListener('click', onDelete);
+        };
+        const onSave = () => {
+          const newDate = document.getElementById('mDate').value;
+          const updated = { ...s,
+            title: document.getElementById('mTitle').value,
+            dateISO: new Date(newDate + 'T00:00').toISOString(),
+            startTime: document.getElementById('mStart').value,
+            endTime: document.getElementById('mEnd').value,
+            materials: document.getElementById('mMaterials').value,
+            notes: document.getElementById('mNotes').value,
+          };
+          // Move between weeks if date changed
+          const newWeekKey = App.getWeekKey(new Date(updated.dateISO));
+          if (newWeekKey !== weekKey) {
+            sessions.splice(idx, 1);
+            Storage.saveSessionsByWeek(weekKey, sessions);
+            const other = Storage.getSessionsByWeek(newWeekKey);
+            other.push(updated);
+            Storage.saveSessionsByWeek(newWeekKey, other);
+          } else {
+            sessions[idx] = updated;
+            Storage.saveSessionsByWeek(weekKey, sessions);
+          }
+          close();
+        renderTable();
+        };
+        const onDelete = () => {
+          if (!confirm('Delete this class?')) return;
+          sessions.splice(idx, 1);
+          Storage.saveSessionsByWeek(weekKey, sessions);
+        close();
+          renderTable();
+        };
+      document.getElementById('closeModal').addEventListener('click', close);
+      document.getElementById('saveClass').addEventListener('click', onSave);
+      document.getElementById('deleteClass').addEventListener('click', onDelete);
+      }
+
+      document.getElementById('prevWeek').addEventListener('click', () => { 
+        currentWeekSunday.setDate(currentWeekSunday.getDate() - 7); 
+        renderWeekLabel(); 
+        renderTable();
+        updateWeekSelector();
+      });
+      document.getElementById('nextWeek').addEventListener('click', () => { 
+        currentWeekSunday.setDate(currentWeekSunday.getDate() + 7); 
+        renderWeekLabel(); 
+        renderTable();
+        updateWeekSelector();
+      });
+      document.getElementById('todayBtn').addEventListener('click', () => { 
+        currentWeekSunday = App.getSunday(new Date()); 
+        renderWeekLabel(); 
+        renderTable();
+        updateWeekSelector();
+      });
+      
+      function updateWeekSelector() {
+        const currentWeekKey = App.getWeekKey(currentWeekSunday);
+        weekSelect.value = currentWeekKey;
+      }
+      
+      weekSelect.addEventListener('change', (e) => {
+        const selectedKey = e.target.value;
+        if (selectedKey) {
+          // Parse the week key format: "week:YYYY-MM-DD"
+          const dateStr = selectedKey.replace('week:', '');
+          currentWeekSunday = new Date(dateStr + 'T00:00');
+          renderWeekLabel();
+          renderTable();
+        }
+      });
+
+      // Open modal when clicking a class
+      App.on(document, 'click', '.session-pill', (e, pill) => {
+        const sessionId = pill.dataset.id;
+        openModalFor(sessionId);
+      });
+
+      // init
+
+      populateWeekSelector();
+      renderWeekLabel();
+      renderTable();
+    </script>
+  </body>
+</html>
+
+

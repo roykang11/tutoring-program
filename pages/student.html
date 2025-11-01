@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Student</title>
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <h1 id="title">Student</h1>
+      </div>
+      <nav class="nav">
+        <a href="./calendar.html">Weekly Calendar</a>
+        <a href="./students.html">Students</a>
+        <a href="./earnings.html">Earnings</a>
+      </nav>
+    </header>
+    <main class="container with-side">
+      <div class="card">
+        <div class="row" style="justify-content: space-between">
+          <div>
+            <div><span class="color-dot" id="studentColorDot"></span><strong id="studentName"></strong></div>
+            <div class="muted">Grade: <span id="studentGrade"></span> • Rate: <span id="studentRate"></span>/hr</div>
+          </div>
+          <div class="row">
+            <button type="button" class="ghost" id="editStudent">Edit</button>
+            <a class="btn ghost" href="./students.html">Back to Students</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card side-panel" style="height:fit-content">
+        <h3>Add Class</h3>
+        <div class="form-stack">
+          <div>
+            <label>Title</label>
+            <input id="cTitle" placeholder="" />
+          </div>
+          <div>
+            <label>Date</label>
+            <input id="cDate" type="date" />
+          </div>
+          <div>
+            <label>Start</label>
+            <input id="cStart" type="time" />
+          </div>
+          <div>
+            <label>End</label>
+            <input id="cEnd" type="time" />
+          </div>
+          </div>
+        <div style="margin-top:8px">
+          <label>Material covered</label>
+          <textarea id="cMaterials" rows="3"></textarea>
+          </div>
+        <div style="margin-top:8px">
+          <label>Notes</label>
+          <textarea id="cNotes" rows="3"></textarea>
+          </div>
+        <div class="row" style="margin-top:8px; justify-content:flex-end">
+          <button type="button" id="addClassBtn">Add Class</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Classes</h3>
+        <hr style="margin:0 0 12px 0;border:none;border-top:1px solid var(--border)" />
+        <div id="sessions" class="list two"></div>
+      </div>
+    </main>
+
+    <script src="../js/globals.js"></script>
+    <script>
+
+      const studentId = App.readQuery('id');
+      const students = Storage.getStudents();
+      const student = students.find(s => s.id === studentId);
+        if (!student) {
+        alert('Student not found');
+        location.href = './students.html';
+      }
+      document.getElementById('title').textContent = `Student: ${student.name}`;
+        document.getElementById('studentName').textContent = student.name;
+      document.getElementById('studentGrade').textContent = student.grade || '';
+      document.getElementById('studentRate').textContent = App.currency(student.rate || 0);
+      document.getElementById('studentColorDot').style.background = student.color || '#c7d2fe';
+
+      // inline edit modal
+      const modalBackdrop = document.createElement('div');
+      modalBackdrop.className = 'modal-backdrop';
+      modalBackdrop.innerHTML = `
+        <div class="modal">
+          <header><strong>Edit Student</strong><button id="closeStudentEdit" class="ghost">✕</button></header>
+          <div class="grid-2" style="gap:16px">
+            <div>
+              <label>Name</label>
+              <input id="pName" />
+            </div>
+            <div>
+              <label>Grade</label>
+              <input id="pGrade" />
+            </div>
+            <div>
+              <label>Rate</label>
+              <div style="display: flex; gap: 8px;">
+                <input id="pRate" type="number" min="0" step="1" style="flex: 1;" />
+                <select id="pCurrency" style="width: 80px;">
+                  <option value="USD">USD</option>
+                  <option value="KRW">KRW</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label>Color</label>
+              <input id="pColor" type="color" />
+            </div>
+          </div>
+          <footer>
+            <button type="button" id="pDelete" class="ghost">Delete Student</button>
+            <button type="button" id="pSave">Save</button>
+          </footer>
+        </div>`;
+      document.body.appendChild(modalBackdrop);
+
+      function openProfileEdit() {
+        document.getElementById('pName').value = student.name;
+        document.getElementById('pGrade').value = student.grade || '';
+        document.getElementById('pRate').value = student.rate || 0;
+        document.getElementById('pCurrency').value = student.currency || 'USD';
+        document.getElementById('pColor').value = student.color || '#c7d2fe';
+        modalBackdrop.style.display = 'flex';
+      }
+      function closeProfileEdit(){ modalBackdrop.style.display = 'none'; }
+      document.getElementById('editStudent').addEventListener('click', openProfileEdit);
+      document.getElementById('closeStudentEdit').addEventListener('click', closeProfileEdit);
+      document.getElementById('pSave').addEventListener('click', () => {
+        const students = Storage.getStudents();
+        const idx = students.findIndex(s => s.id === studentId);
+        if (idx < 0) return;
+        students[idx] = {
+          ...students[idx],
+          name: document.getElementById('pName').value.trim() || students[idx].name,
+          grade: document.getElementById('pGrade').value.trim(),
+          rate: parseFloat(document.getElementById('pRate').value || '0') || 0,
+          currency: document.getElementById('pCurrency').value,
+          color: document.getElementById('pColor').value || '#c7d2fe',
+        };
+        Storage.saveStudents(students);
+        closeProfileEdit();
+        location.reload();
+      });
+      document.getElementById('pDelete').addEventListener('click', () => {
+        if (!confirm('Delete this student?')) return;
+        const students = Storage.getStudents();
+        const next = students.filter(s => s.id !== studentId);
+        Storage.saveStudents(next);
+        location.href = './students.html';
+      });
+
+      function renderSessions() {
+        const weeks = Storage.getAllWeeks();
+        const container = document.getElementById('sessions');
+        const allSessions = weeks.flatMap(w => Storage.getSessionsByWeek(w).map(s => ({ ...s, weekKey: w })));
+        const mine = allSessions.filter(s => s.studentId === studentId);
+        
+        if (mine.length === 0) {
+          container.innerHTML = '<div class="muted">No sessions yet. Add one from the calendar.</div>';
+          return;
+        }
+        
+        // Sort by creation order for numbering, but display recent first
+        const sortedByCreation = mine.sort((a, b) => {
+          const aTime = parseInt(a.id.split('_')[1]) || 0;
+          const bTime = parseInt(b.id.split('_')[1]) || 0;
+          return aTime - bTime; // oldest first for proper numbering
+        });
+
+        // Create a map of session ID to class number
+        const classNumbers = {};
+        sortedByCreation.forEach((s, index) => {
+          classNumbers[s.id] = index + 1;
+        });
+
+        // Sort by date/time for display (recent first)
+        const sortedForDisplay = mine.sort((a, b) => {
+          const ta = new Date(`${a.dateISO.slice(0,10)}T${a.startTime || '00:00'}`).getTime();
+          const tb = new Date(`${b.dateISO.slice(0,10)}T${b.startTime || '00:00'}`).getTime();
+          return tb - ta; // recent first
+        });
+
+        container.innerHTML = sortedForDisplay.map((s) => `
+          <div class="item" style="margin-bottom:12px">
+            <div class="row" style="justify-content:space-between; align-items:flex-start; margin-bottom:8px">
+              <div>
+                <div style="font-weight:600; font-size:14px">${s.title || `Class #${classNumbers[s.id]}`}</div>
+                <div class="muted" style="font-size:12px">${new Date(s.dateISO).toLocaleDateString()} ${s.startTime || ''}–${s.endTime || ''}</div>
+              </div>
+              <div class="row" style="gap:6px">
+                ${s.zoomLink ? `<a class="link" target="_blank" href="${s.zoomLink}" style="font-size:12px">Zoom</a>` : ''}
+                <button class="ghost" data-action="edit" data-week="${s.weekKey}" data-id="${s.id}" style="font-size:12px">Edit</button>
+                <button class="ghost" data-action="delete" data-week="${s.weekKey}" data-id="${s.id}" style="font-size:12px">Delete</button>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:8px">
+              <div>
+                <label style="font-size:11px">Materials covered</label>
+                <div data-field="materials" data-id="${s.id}" style="font-size:12px; padding:8px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; min-height:40px; white-space:pre-wrap;">${s.materials || 'No materials recorded'}</div>
+              </div>
+              <div>
+                <label style="font-size:11px">Notes</label>
+                <div data-field="notes" data-id="${s.id}" style="font-size:12px; padding:8px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; min-height:40px; white-space:pre-wrap;">${s.notes || 'No notes recorded'}</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        container.addEventListener('click', (e) => {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const weekKey = btn.dataset.week;
+          const id = btn.dataset.id;
+          const sessions = Storage.getSessionsByWeek(weekKey);
+          const idx = sessions.findIndex(x => x.id === id);
+          if (idx < 0) return;
+          
+          if (action === 'edit') {
+            openClassEditModal(sessions[idx], weekKey, idx);
+          } else if (action === 'delete') {
+            if (!confirm('Delete this session?')) return;
+            sessions.splice(idx, 1);
+            Storage.saveSessionsByWeek(weekKey, sessions);
+            renderSessions();
+          }
+        });
+      }
+
+      renderSessions();
+
+      // add class form
+      document.getElementById('addClassBtn').addEventListener('click', () => {
+        const title = document.getElementById('cTitle').value.trim() || `Class #${getNextClassNumber()}`;
+        const date = document.getElementById('cDate').value;
+        const start = document.getElementById('cStart').value;
+        const end = document.getElementById('cEnd').value;
+        const materials = document.getElementById('cMaterials').value;
+        const notes = document.getElementById('cNotes').value;
+        if (!date) return alert('Select a date');
+        const dateISO = new Date(date + 'T00:00').toISOString();
+        const wk = App.getWeekKey(new Date(dateISO));
+        const sessions = Storage.getSessionsByWeek(wk);
+        sessions.push({ id: `sess_${Date.now()}`, studentId, dateISO, startTime: start, endTime: end, title, materials, notes, zoomLink: '' });
+        Storage.saveSessionsByWeek(wk, sessions);
+        document.getElementById('cTitle').value = '';
+        document.getElementById('cDate').value = '';
+        document.getElementById('cStart').value = '';
+        document.getElementById('cEnd').value = '';
+        document.getElementById('cMaterials').value = '';
+        document.getElementById('cNotes').value = '';
+        renderSessions();
+        updateClassPlaceholder();
+      });
+
+      function getNextClassNumber() {
+        const weeks = Storage.getAllWeeks();
+        const allSessions = weeks.flatMap(w => Storage.getSessionsByWeek(w));
+        const studentSessions = allSessions.filter(s => s.studentId === studentId);
+        return studentSessions.length + 1;
+      }
+
+      function updateClassPlaceholder() {
+        const nextNumber = getNextClassNumber();
+        document.getElementById('cTitle').placeholder = `Class #${nextNumber}`;
+      }
+
+      // Update placeholder when page loads and after adding classes
+      updateClassPlaceholder();
+
+      // Auto-focus time inputs when typing
+      document.addEventListener('keydown', (e) => {
+        // Check if a number key was pressed
+        if (e.key >= '0' && e.key <= '9') {
+          const activeElement = document.activeElement;
+          
+          // If no input is focused, try to focus the start time input
+          if (!activeElement || activeElement.tagName !== 'INPUT') {
+            const startInput = document.getElementById('cStart');
+            if (startInput && startInput.offsetParent !== null) { // Check if visible
+              startInput.focus();
+              // Insert the typed number
+              startInput.value = e.key;
+              e.preventDefault();
+            }
+          }
+        }
+      });
+
+      // Handle time input formatting - only format when typing pure numbers
+      document.getElementById('cStart').addEventListener('input', (e) => {
+        formatTimeInput(e.target);
+      });
+      
+      document.getElementById('cEnd').addEventListener('input', (e) => {
+        formatTimeInput(e.target);
+      });
+
+      function formatTimeInput(input) {
+        let value = input.value;
+        
+        // Only auto-format if user is typing pure numbers (not using time picker)
+        if (/^\d+$/.test(value)) {
+          if (value.length >= 3) {
+            value = value.substring(0, 2) + ':' + value.substring(2, 4);
+            input.value = value;
+          }
+        }
+      }
+
+      function openClassEditModal(session, weekKey, sessionIndex) {
+        const modalBackdrop = document.createElement('div');
+        modalBackdrop.className = 'modal-backdrop';
+        modalBackdrop.innerHTML = `
+        <div class="modal">
+            <header><strong>Edit Class</strong><button id="closeClassEdit" class="ghost">✕</button></header>
+            <div class="grid-2" style="gap:16px">
+            <div>
+              <label>Title</label>
+                <input id="editTitle" value="${session.title || ''}" />
+            </div>
+            <div>
+              <label>Date</label>
+                <input id="editDate" type="date" value="${session.dateISO.slice(0,10)}" />
+            </div>
+            <div>
+              <label>Start Time</label>
+                <input id="editStart" type="time" value="${session.startTime || ''}" />
+            </div>
+            <div>
+              <label>End Time</label>
+                <input id="editEnd" type="time" value="${session.endTime || ''}" />
+            </div>
+            </div>
+            <div style="margin-top:16px">
+              <label>Materials covered</label>
+              <textarea id="editMaterials" rows="4">${session.materials || ''}</textarea>
+            </div>
+            <div style="margin-top:16px">
+              <label>Notes</label>
+              <textarea id="editNotes" rows="4">${session.notes || ''}</textarea>
+          </div>
+          <footer>
+              <button type="button" id="saveClassEdit">Save</button>
+          </footer>
+          </div>`;
+        
+        document.body.appendChild(modalBackdrop);
+        modalBackdrop.style.display = 'flex';
+        
+        // Close modal handlers
+        document.getElementById('closeClassEdit').addEventListener('click', () => {
+          document.body.removeChild(modalBackdrop);
+        });
+        
+        modalBackdrop.addEventListener('click', (e) => {
+          if (e.target === modalBackdrop) {
+            document.body.removeChild(modalBackdrop);
+          }
+        });
+        
+        // Save handler
+        document.getElementById('saveClassEdit').addEventListener('click', () => {
+          const sessions = Storage.getSessionsByWeek(weekKey);
+          sessions[sessionIndex] = {
+            ...sessions[sessionIndex],
+            title: document.getElementById('editTitle').value.trim(),
+            dateISO: new Date(document.getElementById('editDate').value + 'T00:00').toISOString(),
+            startTime: document.getElementById('editStart').value,
+            endTime: document.getElementById('editEnd').value,
+            materials: document.getElementById('editMaterials').value,
+            notes: document.getElementById('editNotes').value
+          };
+          Storage.saveSessionsByWeek(weekKey, sessions);
+          document.body.removeChild(modalBackdrop);
+          renderSessions();
+        });
+      }
+    </script>
+  </body>
+</html>
+
+

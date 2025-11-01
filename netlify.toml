@@ -1,0 +1,15 @@
+# Netlify configuration for Tutoring Program
+
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/pages/calendar.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/pages/calendar.html"
+  status = 200
+

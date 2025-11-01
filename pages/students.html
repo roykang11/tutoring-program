@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Students</title>
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <h1>Students</h1>
+      </div>
+      <nav class="nav">
+        <a href="./calendar.html">Weekly Calendar</a>
+        <a href="./students.html">Students</a>
+        <a href="./earnings.html">Earnings</a>
+      </nav>
+    </header>
+    <main class="container with-side">
+      <div class="card side-panel">
+        <h3>Add Student</h3>
+        <div class="form-stack">
+          <div>
+            <label for="studentName">Student name</label>
+            <input id="studentName" placeholder="e.g., Alex Kim" />
+          </div>
+          <div>
+            <label for="studentGrade">Grade</label>
+            <input id="studentGrade" placeholder="e.g., 10th" />
+          </div>
+          <div>
+            <label for="studentRate">Hourly rate</label>
+            <div style="display: flex; gap: 8px;">
+              <input id="studentRate" type="number" min="0" step="1" style="flex: 1;" />
+              <select id="studentCurrency" style="width: 80px;">
+              <option value="USD">USD</option>
+              <option value="KRW">KRW</option>
+            </select>
+          </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px; gap:12px">
+          <div style="max-width:180px">
+            <label for="studentColor">Color</label>
+            <input id="studentColor" type="color" value="#c7d2fe" />
+          </div>
+          <div class="spacer"></div>
+          <div>
+            <button type="button" id="createStudent">Add Student</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="list two" id="studentsList" style="margin-top:12px"></div>
+    </main>
+
+    <script src="../js/globals.js"></script>
+    <script>
+
+      const list = document.getElementById('studentsList');
+
+      function formatStudentRate(rate, currency) {
+        if (currency === 'KRW') {
+          return `₩${rate.toLocaleString()}`;
+        }
+        return `$${rate.toFixed(2)}`;
+      }
+
+      function render() {
+        const students = Storage.getStudents();
+        list.innerHTML = students.map(s => `
+          <button type="button" class="item big" data-action="open" data-id="${s.id}" style="text-align:left;">
+            <div>
+              <div style="font-size:16px; font-weight:600; margin-bottom:6px; color: var(--fg);"><span class="color-dot" style="background:${s.color || '#c7d2fe'}"></span>${s.name}</div>
+              <div class="muted" style="font-size:12px">Grade: ${s.grade || '-'} • Rate: ${formatStudentRate(s.rate || 0, s.currency || 'USD')}/hr</div>
+            </div>
+          </button>
+        `).join('');
+      }
+
+      document.getElementById('createStudent').addEventListener('click', () => {
+        const name = document.getElementById('studentName').value.trim();
+        const rate = parseFloat(document.getElementById('studentRate').value || '0');
+        const grade = document.getElementById('studentGrade').value.trim();
+        const color = document.getElementById('studentColor').value || '#c7d2fe';
+        const currency = document.getElementById('studentCurrency').value;
+        if (!name) return alert('Enter a student name');
+        const st = { id: `stu_${Date.now()}`, name, grade, color, rate: isNaN(rate) ? 0 : rate, currency };
+        Storage.upsertStudent(st);
+        document.getElementById('studentName').value = '';
+        document.getElementById('studentRate').value = '';
+        document.getElementById('studentGrade').value = '';
+        render();
+      });
+
+      list.addEventListener('click', (e) => {
+        const openItem = e.target.closest('.item[data-action="open"]');
+        if (openItem) {
+          const id = openItem.dataset.id;
+          location.href = `./student.html?id=${encodeURIComponent(id)}`;
+          return;
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>
+
+

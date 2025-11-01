@@ -1,0 +1,45 @@
+{
+  "name": "tutoring-program",
+  "version": "1.0.0",
+  "description": "A tutoring session management application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "node server.js",
+    "build": "electron-builder",
+    "dist": "electron-builder --publish=never"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.tutoring.program",
+    "productName": "Tutoring Program",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules",
+      "!dist",
+      "!*.md"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Tutoring Program",
+      "icon": "assets/icon.icns"
+    }
+  }
+}
