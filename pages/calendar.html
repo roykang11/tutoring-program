@@ -266,6 +266,11 @@
         document.getElementById('mMaterials').value = s.materials || '';
         document.getElementById('mNotes').value = s.notes || '';
         modalBackdrop.style.display = 'flex';
+        
+        // Setup date input formatting
+        setTimeout(() => {
+          setupDateInput('mDate');
+        }, 100);
 
         const close = () => { modalBackdrop.style.display = 'none'; cleanup(); };
         const cleanup = () => {
