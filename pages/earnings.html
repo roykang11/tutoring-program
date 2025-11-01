@@ -9,19 +9,7 @@
   <body>
     <header class="app-header">
       <div class="header-left">
-        <div class="date-nav">
-          <button id="prevWeek" class="nav-btn">‹</button>
-          <span id="currentWeek" class="current-week">October 2025</span>
-          <button id="nextWeek" class="nav-btn">›</button>
-          <button id="todayBtn" class="today-btn">Today</button>
-        </div>
-        <div class="week-selector" style="margin-left: 24px;">
-          <label for="weekSelect" style="font-size: 13px; color: var(--muted); margin-right: 8px; font-weight: 500;">Week:</label>
-          <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; min-width: 200px;">
-            <option value="">Select a week...</option>
-          </select>
-        </div>
-        <div class="currency-selector" style="margin-left: 24px;">
+        <div class="currency-selector">
           <label>Currency:</label>
           <select id="currencySelect">
               <option value="USD">USD ($)</option>
@@ -38,6 +26,16 @@
     </header>
     <main class="container">
       <div class="toolbar card">
+        <div class="date-nav">
+          <button id="prevWeek" class="nav-btn">‹</button>
+          <span id="currentWeek" class="current-week">October 2025</span>
+          <button id="nextWeek" class="nav-btn">›</button>
+          <button id="todayBtn" class="today-btn">Today</button>
+        </div>
+        <label for="weekSelect" style="margin-left: 16px;">Week:</label>
+        <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; min-width: 200px;">
+          <option value="">Select a week...</option>
+        </select>
         <div class="spacer"></div>
         <div class="badge" id="totalWeek"></div>
       </div>
@@ -384,7 +382,13 @@
         
         requestAnimationFrame(update);
       }
-
+      // Initialize the page
+      async function init() {
+        await getExchangeRate();
+        renderWeekLabel();
+        populateWeeks();
+        render();
+      }
 
       // Event listeners
       prevWeekBtn.addEventListener('click', () => {
@@ -424,14 +428,7 @@
         render();
       });
 
-      // Initialize the page
-      async function init() {
-        await getExchangeRate();
-        renderWeekLabel();
-        populateWeeks();
-        render();
-      }
-
+      // Initialize
       init();
     </script>
   </body>
