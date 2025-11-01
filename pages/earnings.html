@@ -192,9 +192,6 @@
         const weekKey = App.getWeekKey(currentWeekSunday);
         const sessions = Storage.getSessionsByWeek(weekKey);
         
-        console.log('Rendering earnings for week:', weekKey);
-        console.log('Sessions found:', sessions);
-        
         if (!sessions || sessions.length === 0) {
           body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week. Add sessions in the calendar.</td></tr>';
           document.getElementById('netTotal').textContent = formatCurrency(0);
@@ -218,19 +215,14 @@
         }
         const byStudent = new Map();
         sessions.forEach(s => {
-          console.log('Processing session:', s);
           // Skip if no studentId
-          if (!s.studentId) {
-            console.log('Skipping session - no studentId:', s);
-            return;
-          }
+          if (!s.studentId) return;
           
           // Check if both start and end times exist - check for empty strings too
           const startTime = s.startTime ? String(s.startTime).trim() : '';
           const endTime = s.endTime ? String(s.endTime).trim() : '';
           
           if (!startTime || !endTime || startTime === '' || endTime === '') {
-            console.log('Skipping session - missing times:', s, 'startTime:', startTime, 'endTime:', endTime);
             return;
           }
           
@@ -239,21 +231,15 @@
             const startISO = `${s.dateISO.slice(0,10)}T${startTime}`;
             const endISO = `${s.dateISO.slice(0,10)}T${endTime}`;
             const hrs = App.hoursBetween(startISO, endISO);
-            console.log('Calculated hours:', hrs, 'for session:', s.id, 'from', startISO, 'to', endISO);
             
             // Only count if hours calculation is valid and positive
             if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
               byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
-            } else {
-              console.log('Invalid hours calculated:', hrs, 'for session:', s.id);
             }
           } catch (error) {
-            console.error('Error calculating hours for session:', s.id, error);
             // Skip this session if calculation fails
           }
         });
-        
-        console.log('Students with sessions:', Array.from(byStudent.entries()));
         
         if (byStudent.size === 0 && sessions.length > 0) {
           // Sessions exist but no valid hours calculated (missing times)
@@ -361,7 +347,6 @@
                 }
               } catch (error) {
                 // Skip this session if calculation fails
-                console.error('Error calculating hours:', error);
               }
             });
             weekByStudent.forEach((hrs, sid) => {

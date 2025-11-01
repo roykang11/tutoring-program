@@ -250,12 +250,14 @@
         if (!date) return alert('Select a date');
         if (!start || !end) return alert('Please enter both start and end times');
         
-        // Create date ISO string properly
+        // Create date ISO string properly - use local timezone
         const dateObj = new Date(date + 'T00:00');
-        const dateISO = dateObj.toISOString();
+        // Get date in YYYY-MM-DD format for consistent storage
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const dateISO = `${year}-${month}-${day}T00:00:00.000Z`;
         const wk = App.getWeekKey(dateObj);
-        
-        console.log('Saving session:', { date, dateISO, weekKey: wk, studentId, start, end });
         
         const sessions = Storage.getSessionsByWeek(wk);
         const newSession = { 
@@ -271,8 +273,6 @@
         };
         sessions.push(newSession);
         Storage.saveSessionsByWeek(wk, sessions);
-        
-        console.log('Session saved. Week key:', wk, 'Sessions in week:', sessions);
         document.getElementById('cTitle').value = '';
         document.getElementById('cDate').value = '';
         document.getElementById('cStart').value = '';
