@@ -239,6 +239,61 @@
 
       renderSessions();
 
+      // Function to add earnings to Italy savings when a class is created
+      function addClassEarningsToSavings(session) {
+        try {
+          const students = Storage.getStudents();
+          const student = students.find(s => s.id === session.studentId);
+          if (!student || !session.startTime || !session.endTime) return;
+          
+          // Calculate hours and earnings
+          const dateStr = session.dateISO.split('T')[0];
+          const hrs = App.hoursBetween(`${dateStr}T${session.startTime}`, `${dateStr}T${session.endTime}`);
+          if (hrs <= 0 || isNaN(hrs) || !isFinite(hrs)) return;
+          
+          const rate = student.rate || 0;
+          const studentCurrency = student.currency || 'USD';
+          
+          // Convert to USD if needed
+          let rateUSD = rate;
+          if (studentCurrency === 'KRW') {
+            // We need exchange rate - try to get it or use fallback
+            let exchangeRate = 1300; // fallback
+            try {
+              // Try to read from localStorage if earnings page has been loaded
+              const rateData = localStorage.getItem('tp:exchangeRate');
+              if (rateData) exchangeRate = parseFloat(rateData);
+            } catch (e) {}
+            rateUSD = rate / exchangeRate;
+          }
+          
+          const earningsUSD = hrs * rateUSD;
+          if (earningsUSD > 0) {
+            // Add transaction to savings
+            const KEY_ITALY_TRANSACTIONS = 'tp:italyTransactions';
+            let transactions = [];
+            try {
+              const raw = localStorage.getItem(KEY_ITALY_TRANSACTIONS);
+              transactions = raw ? JSON.parse(raw) : [];
+            } catch (e) {}
+            
+            const transaction = {
+              id: `trans_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+              type: 'class',
+              amount: earningsUSD,
+              description: `Class earnings: ${session.title || 'Untitled'}`,
+              sessionId: session.id,
+              date: new Date().toISOString(),
+              edited: false
+            };
+            transactions.push(transaction);
+            localStorage.setItem(KEY_ITALY_TRANSACTIONS, JSON.stringify(transactions));
+          }
+        } catch (error) {
+          console.error('Error adding class earnings to savings:', error);
+        }
+      }
+
       // add class form
       document.getElementById('addClassBtn').addEventListener('click', () => {
         const title = document.getElementById('cTitle').value.trim() || `Class #${getNextClassNumber()}`;
@@ -271,6 +326,10 @@
         };
         sessions.push(newSession);
         Storage.saveSessionsByWeek(wk, sessions);
+        
+        // Automatically add earnings to Italy savings
+        addClassEarningsToSavings(newSession);
+        
         document.getElementById('cTitle').value = '';
         document.getElementById('cDate').value = '';
         document.getElementById('cStart').value = '';
