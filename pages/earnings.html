@@ -395,28 +395,34 @@
           return;
         }
         let net = 0;
-        body.innerHTML = Array.from(byStudent.entries()).map(([sid, hrs]) => {
-          const st = map[sid];
-          const rate = (st?.rate) || 0;
-          const studentCurrency = st?.currency || 'USD';
+        body.innerHTML = Array.from(byStudent.entries())
+          .filter(([sid, hrs]) => {
+            // Filter out sessions for students that no longer exist
+            const st = map[sid];
+            return st !== undefined;
+          })
+          .map(([sid, hrs]) => {
+            const st = map[sid];
+            const rate = (st?.rate) || 0;
+            const studentCurrency = st?.currency || 'USD';
+              
+            // Convert student rate to USD for calculation
+            let rateUSD = rate;
+            if (studentCurrency === 'KRW') {
+              rateUSD = rate / currentExchangeRate;
+              }
+              
+            const totalUSD = hrs * rateUSD;
+            net += totalUSD;
             
-          // Convert student rate to USD for calculation
-          let rateUSD = rate;
-          if (studentCurrency === 'KRW') {
-            rateUSD = rate / currentExchangeRate;
-            }
+            // Format display based on selected currency
+            const displayRate = selectedCurrency === 'KRW' ? rateUSD * currentExchangeRate : rateUSD;
+            const displayTotal = selectedCurrency === 'KRW' ? totalUSD * currentExchangeRate : totalUSD;
             
-          const totalUSD = hrs * rateUSD;
-          net += totalUSD;
-          
-          // Format display based on selected currency
-          const displayRate = selectedCurrency === 'KRW' ? rateUSD * currentExchangeRate : rateUSD;
-          const displayTotal = selectedCurrency === 'KRW' ? totalUSD * currentExchangeRate : totalUSD;
-          
-          const studentName = st?.name || sid;
-          const colorDot = st?.color ? `<span class="color-dot" style="background:${st.color}; margin-right: 8px;"></span>` : '';
-          return `<tr><td>${colorDot}${studentName}</td><td>${hrs.toFixed(2)}</td><td>${formatCurrency(displayRate)}</td><td>${formatCurrency(displayTotal)}</td></tr>`;
-        }).join('');
+            const studentName = st?.name || sid;
+            const colorDot = st?.color ? `<span class="color-dot" style="background:${st.color}; margin-right: 8px;"></span>` : '';
+            return `<tr><td>${colorDot}${studentName}</td><td>${hrs.toFixed(2)}</td><td>${formatCurrency(displayRate)}</td><td>${formatCurrency(displayTotal)}</td></tr>`;
+          }).join('');
           
         // Show net total in selected currency
         document.getElementById('netTotal').textContent = formatCurrency(net);

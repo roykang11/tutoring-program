@@ -36,15 +36,15 @@
         <div class="form-stack">
           <div>
             <label>Date</label>
-            <input id="cDate" type="date" />
+            <input id="cDate" type="text" placeholder="MM/DD/YYYY" maxlength="10" />
           </div>
           <div>
             <label>Start</label>
-            <input id="cStart" type="time" />
+            <input id="cStart" type="text" placeholder="HH:MM" maxlength="5" />
           </div>
           <div>
             <label>End</label>
-            <input id="cEnd" type="time" />
+            <input id="cEnd" type="text" placeholder="HH:MM" maxlength="5" />
           </div>
           </div>
         <div style="margin-top:8px">
@@ -290,20 +290,68 @@
         }
       }
 
+        // Helper function to convert MM/DD/YYYY to YYYY-MM-DD
+      function parseDateInput(dateStr) {
+        // Try MM/DD/YYYY format
+        const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (match) {
+          const month = parseInt(match[1]);
+          const day = parseInt(match[2]);
+          const year = parseInt(match[3]);
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
+        }
+        // If already in YYYY-MM-DD format, return as is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        return null;
+      }
+
+      // Helper function to convert YYYY-MM-DD to MM/DD/YYYY for display
+      function formatDateForDisplay(dateStr) {
+        const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          return `${match[2]}/${match[3]}/${match[1]}`;
+        }
+        return dateStr;
+      }
+
+      // Helper function to format time (HH:MM)
+      function formatTimeInput(timeStr) {
+        // If already in HH:MM format, return as is
+        if (/^\d{2}:\d{2}$/.test(timeStr)) {
+          return timeStr;
+        }
+        // If just digits, try to format
+        const digits = timeStr.replace(/\D/g, '');
+        if (digits.length >= 4) {
+          return digits.slice(0, 2) + ':' + digits.slice(2, 4);
+        }
+        return null;
+      }
+
       // add class form
       document.getElementById('addClassBtn').addEventListener('click', () => {
-        const date = document.getElementById('cDate').value;
-        const start = document.getElementById('cStart').value;
-        const end = document.getElementById('cEnd').value;
+        const dateInput = document.getElementById('cDate').value;
+        const startInput = document.getElementById('cStart').value;
+        const endInput = document.getElementById('cEnd').value;
         const materials = document.getElementById('cMaterials').value;
         const notes = document.getElementById('cNotes').value;
-        if (!date) return alert('Select a date');
-        if (!start || !end) return alert('Please enter both start and end times');
+        
+        const date = parseDateInput(dateInput);
+        const start = formatTimeInput(startInput);
+        const end = formatTimeInput(endInput);
+        
+        if (!date) return alert('Please enter a valid date (MM/DD/YYYY)');
+        if (!start) return alert('Please enter a valid start time (HH:MM)');
+        if (!end) return alert('Please enter a valid end time (HH:MM)');
         
         // Automatically generate class number for this student
         const title = `Class #${getNextClassNumber()}`;
         
-        // Use the date string directly (YYYY-MM-DD format from date input)
+        // Use the date string directly (YYYY-MM-DD format)
         // This avoids timezone conversion issues
         const dateISO = `${date}T00:00:00.000Z`;
         // Create a date object for week key calculation using local timezone
@@ -340,149 +388,81 @@
         return studentSessions.length + 1;
       }
 
-      // Date input formatting - allow typing dates in various formats
+      // Date input with auto-advance: MM -> DD -> YYYY
       function setupDateInput(inputId) {
         const input = document.getElementById(inputId);
         if (!input) return;
         
-        let isTyping = false;
-        let lastKeydown = '';
+        input.addEventListener('input', (e) => {
+          let value = e.target.value.replace(/\D/g, ''); // Only digits
+          
+          if (value.length >= 2 && value.length < 3) {
+            // MM entered, add slash and move to day
+            e.target.value = value.slice(0, 2) + '/';
+          } else if (value.length >= 4 && value.length < 5) {
+            // MMDD entered, add second slash and move to year
+            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/';
+          } else if (value.length >= 8) {
+            // MMDDYYYY entered, format complete
+            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+          } else if (value.length > 0 && value.length < 2) {
+            // Single digit, just show it
+            e.target.value = value;
+          }
+        });
         
         input.addEventListener('keydown', (e) => {
-          // Detect if user is typing (not clicking date picker)
-          if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
-            isTyping = true;
-            lastKeydown = e.key;
+          // Allow backspace, delete, tab, arrow keys
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            return;
           }
+          // Allow numbers
+          if (e.key >= '0' && e.key <= '9') {
+            return;
+          }
+          // Block other keys
+          e.preventDefault();
         });
+      }
+
+      // Time input with auto-advance: HH -> MM
+      function setupTimeInput(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
         
         input.addEventListener('input', (e) => {
-          if (!isTyping) return; // User is using date picker, don't interfere
+          let value = e.target.value.replace(/\D/g, ''); // Only digits
           
-          let value = e.target.value;
-          const digitsOnly = value.replace(/\D/g, '');
-          
-          // If user is typing pure numbers, format as they go
-          if (digitsOnly.length > 0 && digitsOnly.length <= 8) {
-            if (digitsOnly.length <= 2) {
-              // Just month: MM
-              e.target.value = digitsOnly;
-            } else if (digitsOnly.length <= 4) {
-              // Month and day: MMDD -> MM/DD
-              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2);
-            } else if (digitsOnly.length <= 8) {
-              // Month, day, and year: MMDDYYYY -> MM/DD/YYYY
-              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2, 4) + '/' + digitsOnly.slice(4, 8);
-            }
-            return;
-          }
-          
-          // If format looks like MM/DD/YYYY, convert to YYYY-MM-DD
-          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (dateMatch) {
-            const month = parseInt(dateMatch[1]);
-            const day = parseInt(dateMatch[2]);
-            const year = parseInt(dateMatch[3]);
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-            }
+          if (value.length >= 2 && value.length < 3) {
+            // HH entered, add colon and move to minutes
+            e.target.value = value.slice(0, 2) + ':';
+          } else if (value.length >= 4) {
+            // HHMM entered, format complete
+            e.target.value = value.slice(0, 2) + ':' + value.slice(2, 4);
+          } else if (value.length > 0 && value.length < 2) {
+            // Single digit, just show it
+            e.target.value = value;
           }
         });
         
-        input.addEventListener('blur', (e) => {
-          isTyping = false;
-          
-          // On blur, try to format final date if it's not already in YYYY-MM-DD format
-          let value = e.target.value;
-          
-          // If already in YYYY-MM-DD format, we're good
-          if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        input.addEventListener('keydown', (e) => {
+          // Allow backspace, delete, tab, arrow keys
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             return;
           }
-          
-          // Try MM/DD/YYYY format
-          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (dateMatch) {
-            const month = parseInt(dateMatch[1]);
-            const day = parseInt(dateMatch[2]);
-            const year = parseInt(dateMatch[3]);
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-              return;
-            }
+          // Allow numbers
+          if (e.key >= '0' && e.key <= '9') {
+            return;
           }
-          
-          // Try MMDDYYYY format (no slashes)
-          const noSlashMatch = value.replace(/\D/g, '');
-          if (noSlashMatch.length === 8) {
-            const month = parseInt(noSlashMatch.slice(0, 2));
-            const day = parseInt(noSlashMatch.slice(2, 4));
-            const year = parseInt(noSlashMatch.slice(4, 8));
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-            }
-          }
-        });
-        
-        // Reset typing flag when user clicks (uses date picker)
-        input.addEventListener('click', () => {
-          // Small delay to check if it was a click or part of typing
-          setTimeout(() => {
-            if (document.activeElement !== input) {
-              isTyping = false;
-            }
-          }, 100);
+          // Block other keys
+          e.preventDefault();
         });
       }
       
-      // Setup date input formatting when page loads
+      // Setup inputs when page loads
       setupDateInput('cDate');
-
-      // Auto-focus time inputs when typing
-      document.addEventListener('keydown', (e) => {
-        // Check if a number key was pressed
-        if (e.key >= '0' && e.key <= '9') {
-          const activeElement = document.activeElement;
-          
-          // If no input is focused, try to focus the start time input
-          if (!activeElement || activeElement.tagName !== 'INPUT') {
-            const startInput = document.getElementById('cStart');
-            if (startInput && startInput.offsetParent !== null) { // Check if visible
-              startInput.focus();
-              // Insert the typed number
-              startInput.value = e.key;
-              e.preventDefault();
-            }
-          }
-        }
-      });
-
-      // Handle time input formatting - only format when typing pure numbers
-      document.getElementById('cStart').addEventListener('input', (e) => {
-        formatTimeInput(e.target);
-      });
-      
-      document.getElementById('cEnd').addEventListener('input', (e) => {
-        formatTimeInput(e.target);
-      });
-
-      function formatTimeInput(input) {
-        let value = input.value;
-        
-        // Only auto-format if user is typing pure numbers (not using time picker)
-        if (/^\d+$/.test(value)) {
-          if (value.length >= 3) {
-            value = value.substring(0, 2) + ':' + value.substring(2, 4);
-            input.value = value;
-          }
-        }
-      }
+      setupTimeInput('cStart');
+      setupTimeInput('cEnd');
 
       function openClassEditModal(session, weekKey, sessionIndex) {
         // Get class number for this session
@@ -507,15 +487,15 @@
             <div class="grid-2" style="gap:16px">
             <div>
               <label>Date</label>
-                <input id="editDate" type="date" value="${session.dateISO.slice(0,10)}" />
+                <input id="editDate" type="text" placeholder="MM/DD/YYYY" maxlength="10" value="${formatDateForDisplay(session.dateISO.slice(0,10))}" />
             </div>
             <div>
               <label>Start Time</label>
-                <input id="editStart" type="time" value="${session.startTime || ''}" />
+                <input id="editStart" type="text" placeholder="HH:MM" maxlength="5" value="${session.startTime || ''}" />
             </div>
             <div>
               <label>End Time</label>
-                <input id="editEnd" type="time" value="${session.endTime || ''}" />
+                <input id="editEnd" type="text" placeholder="HH:MM" maxlength="5" value="${session.endTime || ''}" />
             </div>
             </div>
             <div style="margin-top:16px">
@@ -534,9 +514,11 @@
         document.body.appendChild(modalBackdrop);
         modalBackdrop.style.display = 'flex';
         
-        // Setup date input formatting for edit modal
+        // Setup date and time inputs for edit modal
         setTimeout(() => {
           setupDateInput('editDate');
+          setupTimeInput('editStart');
+          setupTimeInput('editEnd');
         }, 100);
         
         // Close modal handlers
@@ -552,9 +534,24 @@
         
         // Save handler
         document.getElementById('saveClassEdit').addEventListener('click', () => {
-          const editDate = document.getElementById('editDate').value;
+          const editDateInput = document.getElementById('editDate').value;
+          const editStartInput = document.getElementById('editStart').value;
+          const editEndInput = document.getElementById('editEnd').value;
+          
+          const editDate = parseDateInput(editDateInput);
+          const editStart = formatTimeInput(editStartInput);
+          const editEnd = formatTimeInput(editEndInput);
+          
           if (!editDate) {
-            alert('Please select a date');
+            alert('Please enter a valid date (MM/DD/YYYY)');
+            return;
+          }
+          if (!editStart) {
+            alert('Please enter a valid start time (HH:MM)');
+            return;
+          }
+          if (!editEnd) {
+            alert('Please enter a valid end time (HH:MM)');
             return;
           }
           
@@ -571,8 +568,8 @@
             ...sessions[sessionIndex],
             // Keep the original title (auto-numbered, don't allow editing)
             dateISO: updatedDateISO,
-            startTime: document.getElementById('editStart').value,
-            endTime: document.getElementById('editEnd').value,
+            startTime: editStart,
+            endTime: editEnd,
             materials: document.getElementById('editMaterials').value,
             notes: document.getElementById('editNotes').value
           };

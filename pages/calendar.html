@@ -220,15 +220,15 @@
           <div class="grid-2">
             <div>
               <label>Date</label>
-              <input id="mDate" type="date" />
+              <input id="mDate" type="text" placeholder="MM/DD/YYYY" maxlength="10" />
             </div>
             <div>
               <label>Start</label>
-              <input id="mStart" type="time" />
+              <input id="mStart" type="text" placeholder="HH:MM" maxlength="5" />
             </div>
             <div>
               <label>End</label>
-              <input id="mEnd" type="time" />
+              <input id="mEnd" type="text" placeholder="HH:MM" maxlength="5" />
             </div>
           </div>
           <div style="margin-top:8px">
@@ -260,16 +260,27 @@
           titleElement.innerHTML = `<strong>${s.title || 'Class'}</strong>`;
         }
         
-        document.getElementById('mDate').value = s.dateISO.slice(0,10);
+        // Helper function to convert YYYY-MM-DD to MM/DD/YYYY for display
+        function formatDateForDisplay(dateStr) {
+          const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (match) {
+            return `${match[2]}/${match[3]}/${match[1]}`;
+          }
+          return dateStr;
+        }
+        
+        document.getElementById('mDate').value = formatDateForDisplay(s.dateISO.slice(0,10));
         document.getElementById('mStart').value = s.startTime || '';
         document.getElementById('mEnd').value = s.endTime || '';
         document.getElementById('mMaterials').value = s.materials || '';
         document.getElementById('mNotes').value = s.notes || '';
         modalBackdrop.style.display = 'flex';
         
-        // Setup date input formatting
+        // Setup date and time inputs
         setTimeout(() => {
           setupDateInput('mDate');
+          setupTimeInput('mStart');
+          setupTimeInput('mEnd');
         }, 100);
 
         const close = () => { modalBackdrop.style.display = 'none'; cleanup(); };
@@ -279,9 +290,24 @@
           document.getElementById('deleteClass').removeEventListener('click', onDelete);
         };
         const onSave = () => {
-          const newDate = document.getElementById('mDate').value;
+          const newDateInput = document.getElementById('mDate').value;
+          const newStartInput = document.getElementById('mStart').value;
+          const newEndInput = document.getElementById('mEnd').value;
+          
+          const newDate = parseDateInput(newDateInput);
+          const newStart = formatTimeInput(newStartInput);
+          const newEnd = formatTimeInput(newEndInput);
+          
           if (!newDate) {
-            alert('Please select a date');
+            alert('Please enter a valid date (MM/DD/YYYY)');
+            return;
+          }
+          if (!newStart) {
+            alert('Please enter a valid start time (HH:MM)');
+            return;
+          }
+          if (!newEnd) {
+            alert('Please enter a valid end time (HH:MM)');
             return;
           }
           
@@ -290,8 +316,8 @@
           const updated = { ...s,
             // Keep the original title (auto-numbered, don't allow editing)
             dateISO: updatedDateISO,
-            startTime: document.getElementById('mStart').value,
-            endTime: document.getElementById('mEnd').value,
+            startTime: newStart,
+            endTime: newEnd,
             materials: document.getElementById('mMaterials').value,
             notes: document.getElementById('mNotes').value,
           };
@@ -364,101 +390,107 @@
         openModalFor(sessionId);
       });
 
-      // Date input formatting - allow typing dates in various formats
+      // Helper function to convert MM/DD/YYYY to YYYY-MM-DD
+      function parseDateInput(dateStr) {
+        // Try MM/DD/YYYY format
+        const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (match) {
+          const month = parseInt(match[1]);
+          const day = parseInt(match[2]);
+          const year = parseInt(match[3]);
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
+        }
+        // If already in YYYY-MM-DD format, return as is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        return null;
+      }
+
+      // Helper function to format time (HH:MM)
+      function formatTimeInput(timeStr) {
+        // If already in HH:MM format, return as is
+        if (/^\d{2}:\d{2}$/.test(timeStr)) {
+          return timeStr;
+        }
+        // If just digits, try to format
+        const digits = timeStr.replace(/\D/g, '');
+        if (digits.length >= 4) {
+          return digits.slice(0, 2) + ':' + digits.slice(2, 4);
+        }
+        return null;
+      }
+
+      // Date input with auto-advance: MM -> DD -> YYYY
       function setupDateInput(inputId) {
         const input = document.getElementById(inputId);
         if (!input) return;
         
-        let isTyping = false;
+        input.addEventListener('input', (e) => {
+          let value = e.target.value.replace(/\D/g, ''); // Only digits
+          
+          if (value.length >= 2 && value.length < 3) {
+            // MM entered, add slash and move to day
+            e.target.value = value.slice(0, 2) + '/';
+          } else if (value.length >= 4 && value.length < 5) {
+            // MMDD entered, add second slash and move to year
+            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/';
+          } else if (value.length >= 8) {
+            // MMDDYYYY entered, format complete
+            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+          } else if (value.length > 0 && value.length < 2) {
+            // Single digit, just show it
+            e.target.value = value;
+          }
+        });
         
         input.addEventListener('keydown', (e) => {
-          // Detect if user is typing (not clicking date picker)
-          if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
-            isTyping = true;
+          // Allow backspace, delete, tab, arrow keys
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            return;
           }
+          // Allow numbers
+          if (e.key >= '0' && e.key <= '9') {
+            return;
+          }
+          // Block other keys
+          e.preventDefault();
         });
+      }
+
+      // Time input with auto-advance: HH -> MM
+      function setupTimeInput(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
         
         input.addEventListener('input', (e) => {
-          if (!isTyping) return; // User is using date picker, don't interfere
+          let value = e.target.value.replace(/\D/g, ''); // Only digits
           
-          let value = e.target.value;
-          const digitsOnly = value.replace(/\D/g, '');
-          
-          // If user is typing pure numbers, format as they go
-          if (digitsOnly.length > 0 && digitsOnly.length <= 8) {
-            if (digitsOnly.length <= 2) {
-              // Just month: MM
-              e.target.value = digitsOnly;
-            } else if (digitsOnly.length <= 4) {
-              // Month and day: MMDD -> MM/DD
-              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2);
-            } else if (digitsOnly.length <= 8) {
-              // Month, day, and year: MMDDYYYY -> MM/DD/YYYY
-              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2, 4) + '/' + digitsOnly.slice(4, 8);
-            }
-            return;
-          }
-          
-          // If format looks like MM/DD/YYYY, convert to YYYY-MM-DD
-          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (dateMatch) {
-            const month = parseInt(dateMatch[1]);
-            const day = parseInt(dateMatch[2]);
-            const year = parseInt(dateMatch[3]);
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-            }
+          if (value.length >= 2 && value.length < 3) {
+            // HH entered, add colon and move to minutes
+            e.target.value = value.slice(0, 2) + ':';
+          } else if (value.length >= 4) {
+            // HHMM entered, format complete
+            e.target.value = value.slice(0, 2) + ':' + value.slice(2, 4);
+          } else if (value.length > 0 && value.length < 2) {
+            // Single digit, just show it
+            e.target.value = value;
           }
         });
         
-        input.addEventListener('blur', (e) => {
-          isTyping = false;
-          
-          // On blur, try to format final date if it's not already in YYYY-MM-DD format
-          let value = e.target.value;
-          
-          // If already in YYYY-MM-DD format, we're good
-          if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        input.addEventListener('keydown', (e) => {
+          // Allow backspace, delete, tab, arrow keys
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             return;
           }
-          
-          // Try MM/DD/YYYY format
-          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (dateMatch) {
-            const month = parseInt(dateMatch[1]);
-            const day = parseInt(dateMatch[2]);
-            const year = parseInt(dateMatch[3]);
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-              return;
-            }
+          // Allow numbers
+          if (e.key >= '0' && e.key <= '9') {
+            return;
           }
-          
-          // Try MMDDYYYY format (no slashes)
-          const noSlashMatch = value.replace(/\D/g, '');
-          if (noSlashMatch.length === 8) {
-            const month = parseInt(noSlashMatch.slice(0, 2));
-            const day = parseInt(noSlashMatch.slice(2, 4));
-            const year = parseInt(noSlashMatch.slice(4, 8));
-            
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              e.target.value = formattedDate;
-            }
-          }
-        });
-        
-        // Reset typing flag when user clicks (uses date picker)
-        input.addEventListener('click', () => {
-          setTimeout(() => {
-            if (document.activeElement !== input) {
-              isTyping = false;
-            }
-          }, 100);
+          // Block other keys
+          e.preventDefault();
         });
       }
 
