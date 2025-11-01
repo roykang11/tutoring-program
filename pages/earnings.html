@@ -814,10 +814,11 @@
       });
       
       function openDetailsModal() {
-        const transactions = getTransactions().sort((a, b) => new Date(b.date) - new Date(a.date));
-        const students = Storage.getStudents();
-        const studentsMap = {};
-        students.forEach(s => { studentsMap[s.id] = s; });
+        try {
+          const transactions = getTransactions().sort((a, b) => new Date(b.date) - new Date(a.date));
+          const students = Storage.getStudents();
+          const studentsMap = {};
+          students.forEach(s => { studentsMap[s.id] = s; });
         
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
@@ -866,13 +867,23 @@
               }
             }
             
+            // Determine transaction type for better display
+            let typeLabel = '';
+            if (t.type === 'class') {
+              typeLabel = '<span style="font-size:10px; background:#28a745; color:white; padding:2px 6px; border-radius:4px; margin-right:6px">CLASS</span>';
+            } else if (t.type === 'manual_add') {
+              typeLabel = '<span style="font-size:10px; background:#007bff; color:white; padding:2px 6px; border-radius:4px; margin-right:6px">ADDED</span>';
+            } else if (t.type === 'manual_subtract') {
+              typeLabel = '<span style="font-size:10px; background:#dc3545; color:white; padding:2px 6px; border-radius:4px; margin-right:6px">SUBTRACTED</span>';
+            }
+            
             modalHTML += `
               <div class="card" style="margin-bottom:12px; padding:16px; border-left:4px solid ${amountColor}">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px">
                   <div style="flex:1">
-                    <div style="font-weight:600; margin-bottom:4px">${description}</div>
+                    <div style="font-weight:600; margin-bottom:4px">${typeLabel}${description}</div>
                     <div style="font-size:12px; color:#666">${dateStr}</div>
-                    ${t.edited ? '<div style="font-size:11px; color:#999; font-style:italic">(Edited)</div>' : ''}
+                    ${t.edited ? '<div style="font-size:11px; color:#999; font-style:italic">(Edited on ' + new Date(t.dateEdited || t.date).toLocaleDateString() + ')</div>' : ''}
                   </div>
                   <div style="text-align:right; margin-left:16px">
                     <div style="font-size:20px; font-weight:700; color:${amountColor}">
@@ -881,8 +892,8 @@
                   </div>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:8px">
-                  <button class="ghost" style="font-size:12px; padding:4px 8px" data-edit-trans="${t.id}">Edit</button>
-                  <button class="ghost" style="font-size:12px; padding:4px 8px; color:#dc3545" data-delete-trans="${t.id}">Delete</button>
+                  <button class="ghost" style="font-size:12px; padding:4px 8px; cursor:pointer" data-edit-trans="${t.id}">✏️ Edit</button>
+                  <button class="ghost" style="font-size:12px; padding:4px 8px; color:#dc3545; cursor:pointer" data-delete-trans="${t.id}">🗑️ Delete</button>
                 </div>
               </div>
             `;
@@ -931,12 +942,17 @@
             }
           }
         });
+        } catch (error) {
+          console.error('Error opening Details modal:', error);
+          alert('Error opening details modal. Please check the console for details.');
+        }
       }
       
       function openEditTransactionModal(transaction) {
         const editModal = document.createElement('div');
         editModal.className = 'modal-backdrop';
         editModal.style.zIndex = '10001';
+        editModal.style.display = 'flex';
         editModal.innerHTML = `
           <div class="modal" style="max-width:500px">
             <header><strong>Edit Transaction</strong><button id="closeEditTrans" class="ghost">✕</button></header>
