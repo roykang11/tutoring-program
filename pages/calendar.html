@@ -364,6 +364,104 @@
         openModalFor(sessionId);
       });
 
+      // Date input formatting - allow typing dates in various formats
+      function setupDateInput(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        
+        let isTyping = false;
+        
+        input.addEventListener('keydown', (e) => {
+          // Detect if user is typing (not clicking date picker)
+          if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
+            isTyping = true;
+          }
+        });
+        
+        input.addEventListener('input', (e) => {
+          if (!isTyping) return; // User is using date picker, don't interfere
+          
+          let value = e.target.value;
+          const digitsOnly = value.replace(/\D/g, '');
+          
+          // If user is typing pure numbers, format as they go
+          if (digitsOnly.length > 0 && digitsOnly.length <= 8) {
+            if (digitsOnly.length <= 2) {
+              // Just month: MM
+              e.target.value = digitsOnly;
+            } else if (digitsOnly.length <= 4) {
+              // Month and day: MMDD -> MM/DD
+              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2);
+            } else if (digitsOnly.length <= 8) {
+              // Month, day, and year: MMDDYYYY -> MM/DD/YYYY
+              e.target.value = digitsOnly.slice(0, 2) + '/' + digitsOnly.slice(2, 4) + '/' + digitsOnly.slice(4, 8);
+            }
+            return;
+          }
+          
+          // If format looks like MM/DD/YYYY, convert to YYYY-MM-DD
+          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (dateMatch) {
+            const month = parseInt(dateMatch[1]);
+            const day = parseInt(dateMatch[2]);
+            const year = parseInt(dateMatch[3]);
+            
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              e.target.value = formattedDate;
+            }
+          }
+        });
+        
+        input.addEventListener('blur', (e) => {
+          isTyping = false;
+          
+          // On blur, try to format final date if it's not already in YYYY-MM-DD format
+          let value = e.target.value;
+          
+          // If already in YYYY-MM-DD format, we're good
+          if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return;
+          }
+          
+          // Try MM/DD/YYYY format
+          const dateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (dateMatch) {
+            const month = parseInt(dateMatch[1]);
+            const day = parseInt(dateMatch[2]);
+            const year = parseInt(dateMatch[3]);
+            
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              e.target.value = formattedDate;
+              return;
+            }
+          }
+          
+          // Try MMDDYYYY format (no slashes)
+          const noSlashMatch = value.replace(/\D/g, '');
+          if (noSlashMatch.length === 8) {
+            const month = parseInt(noSlashMatch.slice(0, 2));
+            const day = parseInt(noSlashMatch.slice(2, 4));
+            const year = parseInt(noSlashMatch.slice(4, 8));
+            
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+              const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              e.target.value = formattedDate;
+            }
+          }
+        });
+        
+        // Reset typing flag when user clicks (uses date picker)
+        input.addEventListener('click', () => {
+          setTimeout(() => {
+            if (document.activeElement !== input) {
+              isTyping = false;
+            }
+          }, 100);
+        });
+      }
+
       // init
 
       populateWeekSelector();
