@@ -69,26 +69,16 @@
         <div style="margin-top:12px; font-size:14px; color:#8B4513; font-style:italic; opacity:0.9">"Teaching minds, earning coins, living the dream! 🎓💰"</div>
       </div>
 
-      <div class="card" style="margin-top:16px; text-align:center; padding:32px; background: linear-gradient(135deg, #FFB6C1, #FF69B4); border: 3px solid #C71585; box-shadow: 0 8px 32px rgba(255, 105, 180, 0.3);">
-        <h2 style="margin-bottom:20px; color:#8B008B; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-size:24px; font-weight:700">✈️ ITALY TRIP SAVINGS ✈️</h2>
-        <div id="italySavings" style="font-size:64px; font-weight:900; color:#8B008B; font-family:'Courier New', monospace; letter-spacing:4px; margin:24px 0; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); transform: perspective(500px) rotateX(15deg);">
-          $0
+      <!-- Savings Goals Section -->
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+          <h2 style="margin:0">Savings Goals</h2>
+          <button id="manageGoalsBtn" class="btn" style="padding:8px 16px; font-size:14px">➕ Manage Goals</button>
         </div>
-        <div class="muted" style="font-size:16px; color:#8B008B; font-weight:600; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); margin-bottom:24px">Your savings goal for Italy!</div>
-        
-        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:24px">
-          <button id="addClassEarningsBtn" style="padding:10px 20px; background:linear-gradient(135deg, #FF69B4, #C71585); color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(199,21,133,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">➕ Add Class Earnings</button>
-          <div style="display:flex; gap:8px; align-items:center">
-            <input type="number" id="addAmount" placeholder="Amount ($)" style="padding:10px 16px; border:2px solid #C71585; border-radius:8px; font-size:16px; width:150px; background:rgba(255,255,255,0.9); color:#8B008B; font-weight:600" min="0" step="0.01">
-            <button id="addSavingsBtn" style="padding:10px 20px; background:#C71585; color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(199,21,133,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">Add Money</button>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center">
-            <input type="number" id="subtractAmount" placeholder="Amount ($)" style="padding:10px 16px; border:2px solid #C71585; border-radius:8px; font-size:16px; width:150px; background:rgba(255,255,255,0.9); color:#8B008B; font-weight:600" min="0" step="0.01">
-            <button id="subtractSavingsBtn" style="padding:10px 20px; background:#8B008B; color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(139,0,139,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">Subtract Money</button>
-          </div>
-          <button id="viewDetailsBtn" style="padding:10px 20px; background:linear-gradient(135deg, #FF69B4, #C71585); color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(199,21,133,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">View Details</button>
+        <div id="goalsSelector" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px"></div>
+        <div id="currentGoalCard" style="text-align:center; padding:32px; border-radius:8px; margin-top:16px">
+          <!-- Goal content will be dynamically rendered here -->
         </div>
-        <div style="margin-top:12px; font-size:14px; color:#8B008B; font-style:italic; opacity:0.9">"Dreaming of pasta, saving every dollar! 🍝💰"</div>
       </div>
     </main>
 
@@ -557,9 +547,17 @@
       // Italy Savings Event Listeners
       document.getElementById('addSavingsBtn').addEventListener('click', () => {
         const input = document.getElementById('addAmount');
+        const currencySelect = document.getElementById('addCurrencySelect');
         const amount = parseFloat(input.value);
+        const currency = currencySelect ? currencySelect.value : 'USD';
+        
         if (amount && amount > 0) {
-          addToSavings(amount);
+          // Convert to USD if needed (savings are stored in USD)
+          let amountUSD = amount;
+          if (currency === 'KRW') {
+            amountUSD = amount / currentExchangeRate;
+          }
+          addToSavings(amountUSD);
           input.value = '';
         } else {
           alert('Please enter a valid amount to add.');
@@ -568,9 +566,17 @@
 
       document.getElementById('subtractSavingsBtn').addEventListener('click', () => {
         const input = document.getElementById('subtractAmount');
+        const currencySelect = document.getElementById('subtractCurrencySelect');
         const amount = parseFloat(input.value);
+        const currency = currencySelect ? currencySelect.value : 'USD';
+        
         if (amount && amount > 0) {
-          subtractFromSavings(amount);
+          // Convert to USD if needed (savings are stored in USD)
+          let amountUSD = amount;
+          if (currency === 'KRW') {
+            amountUSD = amount / currentExchangeRate;
+          }
+          subtractFromSavings(amountUSD);
           input.value = '';
         } else {
           alert('Please enter a valid amount to subtract.');
@@ -1033,8 +1039,40 @@
         render();
       });
 
+      // Function to add currency selectors to amount inputs
+      function addCurrencySelectors() {
+        // Add currency selector to addAmount input
+        const addAmountInput = document.getElementById('addAmount');
+        if (addAmountInput && !document.getElementById('addCurrencySelect')) {
+          const addCurrencySelect = document.createElement('select');
+          addCurrencySelect.id = 'addCurrencySelect';
+          addCurrencySelect.style.cssText = 'padding:10px 8px; border:2px solid #C71585; border-radius:8px; font-size:14px; background:rgba(255,255,255,0.9); color:#8B008B; font-weight:600; cursor:pointer';
+          addCurrencySelect.innerHTML = '<option value="USD">USD</option><option value="KRW">KRW</option>';
+          addCurrencySelect.value = 'USD';
+          addAmountInput.parentNode.insertBefore(addCurrencySelect, addAmountInput.nextSibling);
+        }
+        
+        // Add currency selector to subtractAmount input
+        const subtractAmountInput = document.getElementById('subtractAmount');
+        if (subtractAmountInput && !document.getElementById('subtractCurrencySelect')) {
+          const subtractCurrencySelect = document.createElement('select');
+          subtractCurrencySelect.id = 'subtractCurrencySelect';
+          subtractCurrencySelect.style.cssText = 'padding:10px 8px; border:2px solid #C71585; border-radius:8px; font-size:14px; background:rgba(255,255,255,0.9); color:#8B008B; font-weight:600; cursor:pointer';
+          subtractCurrencySelect.innerHTML = '<option value="USD">USD</option><option value="KRW">KRW</option>';
+          subtractCurrencySelect.value = 'USD';
+          subtractAmountInput.parentNode.insertBefore(subtractCurrencySelect, subtractAmountInput.nextSibling);
+        }
+      }
+
       // Initialize
       init();
+      
+      // Add currency selectors after a short delay to ensure inputs exist
+      setTimeout(() => {
+        addCurrencySelectors();
+        // Also try again after a longer delay in case inputs are created dynamically
+        setTimeout(addCurrencySelectors, 1000);
+      }, 100);
     </script>
   </body>
 </html>
