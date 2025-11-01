@@ -26,14 +26,14 @@
     </header>
     <main class="container">
       <div class="toolbar card">
-        <div class="date-nav">
+        <div class="date-nav" style="flex-shrink: 0;">
           <button id="prevWeek" class="nav-btn">‹</button>
-          <span id="currentWeek" class="current-week">October 2025</span>
+          <span id="currentWeek" class="current-week" style="min-width: 140px; display: inline-block; text-align: center;">October 2025</span>
           <button id="nextWeek" class="nav-btn">›</button>
           <button id="todayBtn" class="today-btn">Today</button>
         </div>
-        <label for="weekSelect" style="margin-left: 16px;">Week:</label>
-        <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; min-width: 200px;">
+        <label for="weekSelect" style="margin-left: 16px; flex-shrink: 0;">Week:</label>
+        <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; width: 150px; flex-shrink: 0;">
           <option value="">Select a week...</option>
         </select>
         <div class="spacer"></div>
@@ -190,17 +190,27 @@
         const students = Storage.getStudents();
         const map = Object.fromEntries(students.map(s => [s.id, s]));
         const weekKey = App.getWeekKey(currentWeekSunday);
-        if (!weekKey) { 
-          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No data yet. Add sessions in the calendar to see earnings.</td></tr>'; 
-          document.getElementById('netTotal').textContent = '$0.00';
-          document.getElementById('totalWeek').textContent = 'No week selected';
-          return; 
-        }
         const sessions = Storage.getSessionsByWeek(weekKey);
+        
         if (!sessions || sessions.length === 0) {
-          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week.</td></tr>';
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week. Add sessions in the calendar.</td></tr>';
           document.getElementById('netTotal').textContent = formatCurrency(0);
-          document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          const weekDateStr = weekKey.replace('week:', '');
+          const weekDate = new Date(weekDateStr + 'T00:00');
+          if (!isNaN(weekDate.getTime())) {
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const sunday = weekDate;
+            const saturday = App.addDays(sunday, 6);
+            let weekLabel;
+            if (sunday.getMonth() === saturday.getMonth()) {
+              weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+            } else {
+              weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+            }
+            document.getElementById('totalWeek').textContent = weekLabel;
+          } else {
+            document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          }
           return;
         }
         const byStudent = new Map();
