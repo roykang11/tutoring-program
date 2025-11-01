@@ -249,11 +249,30 @@
         const notes = document.getElementById('cNotes').value;
         if (!date) return alert('Select a date');
         if (!start || !end) return alert('Please enter both start and end times');
-        const dateISO = new Date(date + 'T00:00').toISOString();
-        const wk = App.getWeekKey(new Date(dateISO));
+        
+        // Create date ISO string properly
+        const dateObj = new Date(date + 'T00:00');
+        const dateISO = dateObj.toISOString();
+        const wk = App.getWeekKey(dateObj);
+        
+        console.log('Saving session:', { date, dateISO, weekKey: wk, studentId, start, end });
+        
         const sessions = Storage.getSessionsByWeek(wk);
-        sessions.push({ id: `sess_${Date.now()}`, studentId, dateISO, startTime: start, endTime: end, title, materials, notes, zoomLink: '' });
+        const newSession = { 
+          id: `sess_${Date.now()}`, 
+          studentId, 
+          dateISO, 
+          startTime: start, 
+          endTime: end, 
+          title, 
+          materials, 
+          notes, 
+          zoomLink: '' 
+        };
+        sessions.push(newSession);
         Storage.saveSessionsByWeek(wk, sessions);
+        
+        console.log('Session saved. Week key:', wk, 'Sessions in week:', sessions);
         document.getElementById('cTitle').value = '';
         document.getElementById('cDate').value = '';
         document.getElementById('cStart').value = '';

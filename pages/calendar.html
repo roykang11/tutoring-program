@@ -136,7 +136,11 @@
         // body - one row per student
         body.innerHTML = '';
         const students = Storage.getStudents();
-        const sessions = Storage.getSessionsByWeek(App.getWeekKey(currentWeekSunday));
+        const weekKey = App.getWeekKey(currentWeekSunday);
+        const sessions = Storage.getSessionsByWeek(weekKey);
+        console.log('Calendar - Week key:', weekKey);
+        console.log('Calendar - Sessions found:', sessions);
+        console.log('Calendar - All weeks:', Storage.getAllWeeks());
         const studentsById = Object.fromEntries(students.map(s => [s.id, s]));
 
         if (students.length === 0) {
@@ -170,9 +174,19 @@
               const daySessions = sessions.filter(s => {
                 if (s.studentId !== student.id) return false;
                 const sessionDate = new Date(s.dateISO);
-                return sessionDate.getDate() === d.getDate() && 
-                       sessionDate.getMonth() === d.getMonth() && 
-                       sessionDate.getFullYear() === d.getFullYear();
+                // Normalize both dates to midnight for comparison
+                const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+                const dayToMatch = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const matches = sessionDay.getTime() === dayToMatch.getTime();
+                if (!matches && s.studentId === student.id) {
+                  console.log('Session date mismatch:', {
+                    session: s,
+                    sessionDate: sessionDay,
+                    targetDay: dayToMatch,
+                    sessionISO: s.dateISO
+                  });
+                }
+                return matches;
               });
               
               // Display sessions in the cell
