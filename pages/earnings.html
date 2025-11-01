@@ -328,11 +328,21 @@
             }
             
             // Check if this session's date is in the current month
-            const sessionDate = new Date(s.dateISO);
+            // Parse dateISO string (format: YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DD)
+            let sessionDate;
+            try {
+              const dateStr = s.dateISO.split('T')[0]; // Get just YYYY-MM-DD part
+              sessionDate = new Date(dateStr + 'T00:00:00');
+            } catch (e) {
+              sessionDate = new Date(s.dateISO);
+            }
+            
+            // Check if session is in current month
             if (sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear) {
               try {
                 // Calculate hours from start and end times
-                const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+                const dateStr = s.dateISO.split('T')[0]; // Get YYYY-MM-DD part
+                const hrs = App.hoursBetween(`${dateStr}T${s.startTime}`, `${dateStr}T${s.endTime}`);
                 
                 if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
                   const st = map[s.studentId];
@@ -347,7 +357,7 @@
                     rateUSD = rate / currentExchangeRate;
                   }
           
-                  // Add this session's earnings to the monthly total
+                  // Calculate earnings for this session: hours × rate
                   const sessionEarningsUSD = hrs * rateUSD;
                   grandTotalUSD += sessionEarningsUSD;
                 }
@@ -358,7 +368,7 @@
           });
         });
         
-        // Display total in KRW (always in Won as requested)
+        // Display total in KRW (always in Won)
         const totalAmountWon = grandTotalUSD * currentExchangeRate;
         animateCounter(document.getElementById('totalEarnings'), totalAmountWon);
       }
