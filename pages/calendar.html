@@ -426,33 +426,58 @@
       // Date input with auto-advance: MM -> DD -> YYYY
       function setupDateInput(inputId) {
         const input = document.getElementById(inputId);
-        if (!input) return;
+        if (!input || input.tagName !== 'INPUT') return; // Only apply to input elements, not textareas
         
+        let lastValue = '';
         input.addEventListener('input', (e) => {
-          let value = e.target.value.replace(/\D/g, ''); // Only digits
+          const target = e.target;
+          let value = target.value.replace(/\D/g, ''); // Only digits
           
-          if (value.length >= 2 && value.length < 3) {
-            // MM entered, add slash and move to day
-            e.target.value = value.slice(0, 2) + '/';
-          } else if (value.length >= 4 && value.length < 5) {
+          // If user deleted, allow it
+          if (target.value.length < lastValue.length) {
+            lastValue = target.value;
+            return;
+          }
+          
+          if (value.length === 2 && lastValue.replace(/\D/g, '').length < 2) {
+            // MM entered, add slash and auto-advance cursor
+            target.value = value.slice(0, 2) + '/';
+            // Move cursor to after the slash
+            setTimeout(() => {
+              target.setSelectionRange(3, 3);
+            }, 0);
+          } else if (value.length === 4 && lastValue.replace(/\D/g, '').length < 4) {
             // MMDD entered, add second slash and move to year
-            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/';
+            target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/';
+            // Move cursor to after the second slash
+            setTimeout(() => {
+              target.setSelectionRange(6, 6);
+            }, 0);
           } else if (value.length >= 8) {
             // MMDDYYYY entered, format complete
-            e.target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
-          } else if (value.length > 0 && value.length < 2) {
-            // Single digit, just show it
-            e.target.value = value;
+            target.value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+            // Move cursor to end
+            setTimeout(() => {
+              target.setSelectionRange(target.value.length, target.value.length);
+            }, 0);
           }
+          lastValue = target.value;
         });
         
         input.addEventListener('keydown', (e) => {
-          // Allow backspace, delete, tab, arrow keys
-          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          // Only handle for this specific input element
+          if (e.target !== input) return;
+          
+          // Allow backspace, delete, tab, arrow keys, enter
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
             return;
           }
           // Allow numbers
           if (e.key >= '0' && e.key <= '9') {
+            return;
+          }
+          // Allow Ctrl/Cmd combinations (for copy/paste/undo)
+          if (e.ctrlKey || e.metaKey) {
             return;
           }
           // Block other keys
@@ -463,30 +488,51 @@
       // Time input with auto-advance: HH -> MM
       function setupTimeInput(inputId) {
         const input = document.getElementById(inputId);
-        if (!input) return;
+        if (!input || input.tagName !== 'INPUT') return; // Only apply to input elements, not textareas
         
+        let lastValue = '';
         input.addEventListener('input', (e) => {
-          let value = e.target.value.replace(/\D/g, ''); // Only digits
+          const target = e.target;
+          let value = target.value.replace(/\D/g, ''); // Only digits
           
-          if (value.length >= 2 && value.length < 3) {
-            // HH entered, add colon and move to minutes
-            e.target.value = value.slice(0, 2) + ':';
+          // If user deleted, allow it
+          if (target.value.length < lastValue.length) {
+            lastValue = target.value;
+            return;
+          }
+          
+          if (value.length === 2 && lastValue.replace(/\D/g, '').length < 2) {
+            // HH entered, add colon and auto-advance cursor
+            target.value = value.slice(0, 2) + ':';
+            // Move cursor to after the colon
+            setTimeout(() => {
+              target.setSelectionRange(3, 3);
+            }, 0);
           } else if (value.length >= 4) {
             // HHMM entered, format complete
-            e.target.value = value.slice(0, 2) + ':' + value.slice(2, 4);
-          } else if (value.length > 0 && value.length < 2) {
-            // Single digit, just show it
-            e.target.value = value;
+            target.value = value.slice(0, 2) + ':' + value.slice(2, 4);
+            // Move cursor to end
+            setTimeout(() => {
+              target.setSelectionRange(target.value.length, target.value.length);
+            }, 0);
           }
+          lastValue = target.value;
         });
         
         input.addEventListener('keydown', (e) => {
-          // Allow backspace, delete, tab, arrow keys
-          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          // Only handle for this specific input element
+          if (e.target !== input) return;
+          
+          // Allow backspace, delete, tab, arrow keys, enter
+          if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
             return;
           }
           // Allow numbers
           if (e.key >= '0' && e.key <= '9') {
+            return;
+          }
+          // Allow Ctrl/Cmd combinations (for copy/paste/undo)
+          if (e.ctrlKey || e.metaKey) {
             return;
           }
           // Block other keys
