@@ -218,21 +218,23 @@
           // Skip if no studentId
           if (!s.studentId) return;
           
-          // Require both start and end times
-          const hasStartTime = s.startTime && s.startTime.trim().length > 0;
-          const hasEndTime = s.endTime && s.endTime.trim().length > 0;
-          
-          if (!hasStartTime || !hasEndTime) {
-            // Skip sessions without proper time data
+          // Check if both start and end times exist
+          if (!s.startTime || !s.endTime) {
+            // Skip sessions without time data
             return;
           }
           
           // Calculate hours from start and end times
-          const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
-          
-          // Only count if hours calculation is valid and positive
-          if (hrs > 0 && !isNaN(hrs)) {
-            byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
+          try {
+            const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+            
+            // Only count if hours calculation is valid and positive
+            if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
+              byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
+            }
+          } catch (error) {
+            console.error('Error calculating hours for session:', s.id, error);
+            // Skip this session if calculation fails
           }
         });
         
@@ -328,19 +330,21 @@
             const weekSessions = Storage.getSessionsByWeek(wk);
             const weekByStudent = new Map();
             weekSessions.forEach(s => {
-              // Only count sessions with both start and end times
-              const hasStartTime = s.startTime && s.startTime.trim().length > 0;
-              const hasEndTime = s.endTime && s.endTime.trim().length > 0;
-              
-              if (!hasStartTime || !hasEndTime || !s.studentId) {
-                return; // Skip sessions without proper time data
+              // Skip if missing required data
+              if (!s.studentId || !s.startTime || !s.endTime) {
+                return;
               }
               
-              // Calculate hours from start and end times
-              const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
-              
-              if (hrs > 0 && !isNaN(hrs)) {
-                weekByStudent.set(s.studentId, (weekByStudent.get(s.studentId) || 0) + hrs);
+              try {
+                // Calculate hours from start and end times
+                const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+                
+                if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
+                  weekByStudent.set(s.studentId, (weekByStudent.get(s.studentId) || 0) + hrs);
+                }
+              } catch (error) {
+                // Skip this session if calculation fails
+                console.error('Error calculating hours:', error);
               }
             });
             weekByStudent.forEach((hrs, sid) => {
