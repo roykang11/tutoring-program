@@ -687,7 +687,7 @@
                       <div style="font-size:18px; font-weight:700; color:#28a745">+$${earnings.toFixed(2)}</div>
                     </div>
                     <div style="font-size:12px; color:#666; margin-bottom:4px">
-                      ${student.name} • ${dateStr} • ${timeStr} • ${hours.toFixed(2)} hrs @ $${(student.currency === 'KRW' ? earnings / hours / (parseFloat(localStorage.getItem('tp:exchangeRate')) || 1300) * (parseFloat(localStorage.getItem('tp:exchangeRate')) || 1300) : student.rate || 0).toFixed(2)}/hr
+                      ${student.name} • ${dateStr} • ${timeStr} • ${hours.toFixed(2)} hrs @ $${(earnings / hours).toFixed(2)}/hr
                     </div>
                     ${isAlreadyAdded ? '<div style="font-size:11px; color:#999; font-style:italic">Already added to savings</div>' : ''}
                   </div>

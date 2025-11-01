@@ -327,9 +327,6 @@
         sessions.push(newSession);
         Storage.saveSessionsByWeek(wk, sessions);
         
-        // Automatically add earnings to Italy savings
-        addClassEarningsToSavings(newSession);
-        
         document.getElementById('cTitle').value = '';
         document.getElementById('cDate').value = '';
         document.getElementById('cStart').value = '';
