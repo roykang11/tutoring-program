@@ -9,15 +9,27 @@
   <body>
     <header class="app-header">
       <div class="header-left">
-      <div class="currency-selector">
-        <label>Currency:</label>
-        <select id="currencySelect">
-            <option value="USD">USD ($)</option>
-            <option value="KRW">KRW (₩)</option>
-        </select>
-        <span id="conversionRate" class="conversion-rate"></span>
-      </div>
+        <div class="date-nav">
+          <button id="prevWeek" class="nav-btn">‹</button>
+          <span id="currentWeek" class="current-week">October 2025</span>
+          <button id="nextWeek" class="nav-btn">›</button>
+          <button id="todayBtn" class="today-btn">Today</button>
         </div>
+        <div class="week-selector" style="margin-left: 24px;">
+          <label for="weekSelect" style="font-size: 13px; color: var(--muted); margin-right: 8px; font-weight: 500;">Week:</label>
+          <select id="weekSelect" style="background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--fg); cursor: pointer; min-width: 200px;">
+            <option value="">Select a week...</option>
+          </select>
+        </div>
+        <div class="currency-selector" style="margin-left: 24px;">
+          <label>Currency:</label>
+          <select id="currencySelect">
+              <option value="USD">USD ($)</option>
+              <option value="KRW">KRW (₩)</option>
+          </select>
+          <span id="conversionRate" class="conversion-rate"></span>
+        </div>
+      </div>
       <nav class="nav">
         <a href="./calendar.html">Weekly Calendar</a>
         <a href="./students.html">Students</a>
@@ -26,8 +38,6 @@
     </header>
     <main class="container">
       <div class="toolbar card">
-        <label>Week</label>
-        <select id="weekSelect"></select>
         <div class="spacer"></div>
         <div class="badge" id="totalWeek"></div>
       </div>
@@ -69,9 +79,14 @@
       const body = document.getElementById('earningsBody');
       const currencySelect = document.getElementById('currencySelect');
       const conversionRateDiv = document.getElementById('conversionRate');
+      const currentWeek = document.getElementById('currentWeek');
+      const prevWeekBtn = document.getElementById('prevWeek');
+      const nextWeekBtn = document.getElementById('nextWeek');
+      const todayBtn = document.getElementById('todayBtn');
       
       let currentExchangeRate = 1300; // Default fallback rate
       let selectedCurrency = 'USD';
+      let currentWeekSunday = App.getSunday(new Date());
 
       // Get real-time USD to KRW exchange rate
       async function getExchangeRate() {
@@ -111,40 +126,72 @@
         return `$${amount.toFixed(2)}`;
       }
 
+      function renderWeekLabel() {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const sunday = App.getSunday(currentWeekSunday);
+        const saturday = App.addDays(sunday, 6);
+        if (sunday.getMonth() === saturday.getMonth()) {
+          currentWeek.textContent = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        } else {
+          currentWeek.textContent = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        }
+      }
+
       function populateWeeks() {
-        const weeks = Storage.getAllWeeks();
-        if (weeks.length === 0) {
-          weekSelect.innerHTML = '<option value="">No weeks available</option>';
-          return;
+        const allWeeks = Storage.getAllWeeks();
+        const currentWeekKey = App.getWeekKey(currentWeekSunday);
+        
+        // Generate weeks for the past year and next year (like calendar page)
+        const weeks = [];
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setFullYear(today.getFullYear() - 1);
+        startDate.setDate(1);
+        
+        let currentDate = App.getSunday(startDate);
+        const endDate = new Date(today);
+        endDate.setFullYear(today.getFullYear() + 1);
+        endDate.setMonth(11, 31);
+        
+        while (currentDate <= endDate) {
+          const weekKey = App.getWeekKey(currentDate);
+          const weekLabel = formatWeekLabel(currentDate);
+          weeks.push({ key: weekKey, label: weekLabel, date: new Date(currentDate) });
+          currentDate = App.addDays(currentDate, 7);
         }
-        weekSelect.innerHTML = weeks.map(w => {
-          // Format week key for display (week:YYYY-MM-DD)
-          const dateStr = w.replace('week:', '');
-          const date = new Date(dateStr + 'T00:00');
-          if (isNaN(date.getTime())) {
-            return `<option value="${w}">${w}</option>`;
+        
+        weekSelect.innerHTML = '<option value="">Select a week...</option>';
+        weeks.forEach(week => {
+          const option = document.createElement('option');
+          option.value = week.key;
+          option.textContent = week.label;
+          if (week.key === currentWeekKey) {
+            option.selected = true;
           }
-          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const sunday = date;
-          const saturday = App.addDays(sunday, 6);
-          let label;
-          if (sunday.getMonth() === saturday.getMonth()) {
-            label = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
-          } else {
-            label = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
-          }
-          return `<option value="${w}">${label}</option>`;
-        }).join('');
-        // Select the last week by default
-        if (weeks.length > 0) {
-          weekSelect.value = weeks[weeks.length - 1];
+          weekSelect.appendChild(option);
+        });
+      }
+
+      function formatWeekLabel(date) {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const sunday = App.getSunday(date);
+        const saturday = App.addDays(sunday, 6);
+        if (sunday.getMonth() === saturday.getMonth()) {
+          return `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+        } else {
+          return `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
         }
+      }
+
+      function updateWeekSelector() {
+        const currentWeekKey = App.getWeekKey(currentWeekSunday);
+        weekSelect.value = currentWeekKey;
       }
 
       function render() {
         const students = Storage.getStudents();
         const map = Object.fromEntries(students.map(s => [s.id, s]));
-        const weekKey = weekSelect.value || Storage.getAllWeeks().slice(-1)[0];
+        const weekKey = App.getWeekKey(currentWeekSunday);
         if (!weekKey) { 
           body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No data yet. Add sessions in the calendar to see earnings.</td></tr>'; 
           document.getElementById('netTotal').textContent = '$0.00';
@@ -338,15 +385,39 @@
         requestAnimationFrame(update);
       }
 
-      // Initialize currency functionality
-      async function init() {
-        await getExchangeRate();
-        populateWeeks();
-        render();
-      }
 
       // Event listeners
-      weekSelect.addEventListener('change', render);
+      prevWeekBtn.addEventListener('click', () => {
+        currentWeekSunday.setDate(currentWeekSunday.getDate() - 7);
+        renderWeekLabel();
+        updateWeekSelector();
+        render();
+      });
+      
+      nextWeekBtn.addEventListener('click', () => {
+        currentWeekSunday.setDate(currentWeekSunday.getDate() + 7);
+        renderWeekLabel();
+        updateWeekSelector();
+        render();
+      });
+      
+      todayBtn.addEventListener('click', () => {
+        currentWeekSunday = App.getSunday(new Date());
+        renderWeekLabel();
+        updateWeekSelector();
+        render();
+      });
+      
+      weekSelect.addEventListener('change', (e) => {
+        const selectedKey = e.target.value;
+        if (selectedKey) {
+          const dateStr = selectedKey.replace('week:', '');
+          currentWeekSunday = new Date(dateStr + 'T00:00');
+          renderWeekLabel();
+          render();
+        }
+      });
+      
       currencySelect.addEventListener('change', (e) => {
         selectedCurrency = e.target.value;
         updateConversionRateDisplay();
@@ -354,6 +425,13 @@
       });
 
       // Initialize the page
+      async function init() {
+        await getExchangeRate();
+        renderWeekLabel();
+        populateWeeks();
+        render();
+      }
+
       init();
     </script>
   </body>
