@@ -113,20 +113,65 @@
 
       function populateWeeks() {
         const weeks = Storage.getAllWeeks();
-        weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+        if (weeks.length === 0) {
+          weekSelect.innerHTML = '<option value="">No weeks available</option>';
+          return;
+        }
+        weekSelect.innerHTML = weeks.map(w => {
+          // Format week key for display (week:YYYY-MM-DD)
+          const dateStr = w.replace('week:', '');
+          const date = new Date(dateStr + 'T00:00');
+          if (isNaN(date.getTime())) {
+            return `<option value="${w}">${w}</option>`;
+          }
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const sunday = date;
+          const saturday = App.addDays(sunday, 6);
+          let label;
+          if (sunday.getMonth() === saturday.getMonth()) {
+            label = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+          } else {
+            label = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+          }
+          return `<option value="${w}">${label}</option>`;
+        }).join('');
+        // Select the last week by default
+        if (weeks.length > 0) {
+          weekSelect.value = weeks[weeks.length - 1];
+        }
       }
 
       function render() {
         const students = Storage.getStudents();
         const map = Object.fromEntries(students.map(s => [s.id, s]));
         const weekKey = weekSelect.value || Storage.getAllWeeks().slice(-1)[0];
-        if (!weekKey) { body.innerHTML = '<tr><td colspan="4" class="muted">No data yet.</td></tr>'; return; }
+        if (!weekKey) { 
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No data yet. Add sessions in the calendar to see earnings.</td></tr>'; 
+          document.getElementById('netTotal').textContent = '$0.00';
+          document.getElementById('totalWeek').textContent = 'No week selected';
+          return; 
+        }
         const sessions = Storage.getSessionsByWeek(weekKey);
+        if (!sessions || sessions.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week.</td></tr>';
+          document.getElementById('netTotal').textContent = formatCurrency(0);
+          document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          return;
+        }
         const byStudent = new Map();
         sessions.forEach(s => {
+          if (!s.startTime || !s.endTime) return; // Skip sessions without times
           const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime || '00:00'}`, `${s.dateISO.slice(0,10)}T${s.endTime || '00:00'}`);
-          byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
+          if (hrs > 0) {
+            byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
+          }
         });
+        if (byStudent.size === 0) {
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No valid sessions with time data for this week.</td></tr>';
+          document.getElementById('netTotal').textContent = formatCurrency(0);
+          document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          return;
+        }
         let net = 0;
         body.innerHTML = Array.from(byStudent.entries()).map(([sid, hrs]) => {
           const st = map[sid];
@@ -154,7 +199,23 @@
         // Show both USD and KRW for net total
         const netKRW = Math.round(net * currentExchangeRate);
         document.getElementById('netTotal').textContent = `${formatCurrency(net)} (₩${netKRW.toLocaleString()})`;
-        document.getElementById('totalWeek').textContent = `${weekKey}`;
+        // Format week key for display
+        const weekDateStr = weekKey.replace('week:', '');
+        const weekDate = new Date(weekDateStr + 'T00:00');
+        if (!isNaN(weekDate.getTime())) {
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const sunday = weekDate;
+          const saturday = App.addDays(sunday, 6);
+          let weekLabel;
+          if (sunday.getMonth() === saturday.getMonth()) {
+            weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+          } else {
+            weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+          }
+          document.getElementById('totalWeek').textContent = weekLabel;
+        } else {
+          document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+        }
         
         // Calculate total earnings for this month
         let grandTotal = 0;
@@ -164,9 +225,14 @@
         
         const allWeeks = Storage.getAllWeeks();
         allWeeks.forEach(wk => {
-          // Extract date from week key (format: week:MM/DD/YYYY)
+          // Extract date from week key (format: week:YYYY-MM-DD)
           const weekDateStr = wk.replace('week:', '');
-          const weekDate = new Date(weekDateStr);
+          const weekDate = new Date(weekDateStr + 'T00:00');
+          
+          // Skip if date is invalid
+          if (isNaN(weekDate.getTime())) {
+            return;
+          }
           
           // Only include weeks from current month
           if (weekDate.getMonth() === currentMonth && weekDate.getFullYear() === currentYear) {
