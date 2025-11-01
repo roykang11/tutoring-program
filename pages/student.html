@@ -248,6 +248,7 @@
         const materials = document.getElementById('cMaterials').value;
         const notes = document.getElementById('cNotes').value;
         if (!date) return alert('Select a date');
+        if (!start || !end) return alert('Please enter both start and end times');
         const dateISO = new Date(date + 'T00:00').toISOString();
         const wk = App.getWeekKey(new Date(dateISO));
         const sessions = Storage.getSessionsByWeek(wk);

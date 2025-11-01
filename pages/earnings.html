@@ -214,42 +214,31 @@
           return;
         }
         const byStudent = new Map();
-        const sessionsWithoutTimes = [];
         sessions.forEach(s => {
           // Skip if no studentId
           if (!s.studentId) return;
           
-          let hrs = 0;
-          
-          // Calculate hours if start and end times are available (not empty strings)
+          // Require both start and end times
           const hasStartTime = s.startTime && s.startTime.trim().length > 0;
           const hasEndTime = s.endTime && s.endTime.trim().length > 0;
           
-          if (hasStartTime && hasEndTime) {
-            hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
-            // If calculation fails or returns 0, use default
-            if (!hrs || hrs <= 0 || isNaN(hrs)) {
-              hrs = 1;
-              sessionsWithoutTimes.push(s);
-            }
-          } else if (hasStartTime || hasEndTime) {
-            // If only one time, assume 1 hour default
-            hrs = 1;
-            sessionsWithoutTimes.push(s);
-          } else {
-            // No times at all - use default 1 hour duration
-            hrs = 1;
-            sessionsWithoutTimes.push(s);
+          if (!hasStartTime || !hasEndTime) {
+            // Skip sessions without proper time data
+            return;
           }
           
-          if (hrs > 0) {
+          // Calculate hours from start and end times
+          const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+          
+          // Only count if hours calculation is valid and positive
+          if (hrs > 0 && !isNaN(hrs)) {
             byStudent.set(s.studentId, (byStudent.get(s.studentId) || 0) + hrs);
           }
         });
         
         if (byStudent.size === 0 && sessions.length > 0) {
-          // Sessions exist but no valid hours calculated
-          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">Sessions found but unable to calculate hours. Please ensure sessions have valid start and end times.</td></tr>';
+          // Sessions exist but no valid hours calculated (missing times)
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">Sessions found but missing start/end times. Please add times to sessions.</td></tr>';
           document.getElementById('netTotal').textContent = formatCurrency(0);
           const weekDateStr = weekKey.replace('week:', '');
           const weekDate = new Date(weekDateStr + 'T00:00');
@@ -271,34 +260,6 @@
         } else if (byStudent.size === 0) {
           // This case is already handled above
           return;
-        }
-        
-        // Remove any existing warnings
-        const existingWarning = document.querySelector('.time-warning');
-        if (existingWarning) {
-          existingWarning.remove();
-        }
-        
-        // Show warning if there are sessions without times (using default 1 hour)
-        if (sessionsWithoutTimes.length > 0) {
-          const warningDiv = document.createElement('div');
-          warningDiv.className = 'card time-warning';
-          warningDiv.style.marginTop = '16px';
-          warningDiv.style.background = '#fff3cd';
-          warningDiv.style.borderColor = '#ffc107';
-          warningDiv.style.borderWidth = '1px';
-          warningDiv.style.borderStyle = 'solid';
-          warningDiv.style.padding = '12px 16px';
-          warningDiv.style.fontSize = '13px';
-          warningDiv.style.color = '#856404';
-          warningDiv.innerHTML = `⚠️ ${sessionsWithoutTimes.length} session(s) without time data - using 1 hour default. Please add start/end times in the calendar.`;
-          const container = document.querySelector('.container');
-          const lastCard = container.querySelector('.card:last-of-type');
-          if (lastCard) {
-            container.insertBefore(warningDiv, lastCard);
-          } else {
-            container.appendChild(warningDiv);
-          }
         }
         let net = 0;
         body.innerHTML = Array.from(byStudent.entries()).map(([sid, hrs]) => {
@@ -367,15 +328,18 @@
             const weekSessions = Storage.getSessionsByWeek(wk);
             const weekByStudent = new Map();
             weekSessions.forEach(s => {
-              let hrs = 0;
-              // Calculate hours if start and end times are available
-              if (s.startTime && s.endTime) {
-                hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
-              } else {
-                // Default to 1 hour if times are missing
-                hrs = 1;
+              // Only count sessions with both start and end times
+              const hasStartTime = s.startTime && s.startTime.trim().length > 0;
+              const hasEndTime = s.endTime && s.endTime.trim().length > 0;
+              
+              if (!hasStartTime || !hasEndTime || !s.studentId) {
+                return; // Skip sessions without proper time data
               }
-              if (hrs > 0) {
+              
+              // Calculate hours from start and end times
+              const hrs = App.hoursBetween(`${s.dateISO.slice(0,10)}T${s.startTime}`, `${s.dateISO.slice(0,10)}T${s.endTime}`);
+              
+              if (hrs > 0 && !isNaN(hrs)) {
                 weekByStudent.set(s.studentId, (weekByStudent.get(s.studentId) || 0) + hrs);
               }
             });
