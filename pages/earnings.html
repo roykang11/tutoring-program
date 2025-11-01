@@ -587,11 +587,12 @@
       }
       
       function openAddClassEarningsModal() {
-        console.log('openAddClassEarningsModal called');
-        const allWeeks = Storage.getAllWeeks();
-        const students = Storage.getStudents();
-        const studentsMap = {};
-        students.forEach(s => { studentsMap[s.id] = s; });
+        try {
+          console.log('openAddClassEarningsModal called');
+          const allWeeks = Storage.getAllWeeks();
+          const students = Storage.getStudents();
+          const studentsMap = {};
+          students.forEach(s => { studentsMap[s.id] = s; });
         
         // Get all sessions with earnings info
         const allSessions = [];
@@ -801,6 +802,10 @@
         
         // Initial total update
         updateSelectedTotal();
+        } catch (error) {
+          console.error('Error opening Add Class Earnings modal:', error);
+          alert('Error opening class earnings modal. Please check the console for details.');
+        }
       }
 
       // View Details Modal
