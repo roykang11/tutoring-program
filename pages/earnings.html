@@ -77,6 +77,7 @@
         <div class="muted" style="font-size:16px; color:#8B008B; font-weight:600; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); margin-bottom:24px">Your savings goal for Italy!</div>
         
         <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:24px">
+          <button id="addClassEarningsBtn" style="padding:10px 20px; background:linear-gradient(135deg, #FF69B4, #C71585); color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(199,21,133,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">➕ Add Class Earnings</button>
           <div style="display:flex; gap:8px; align-items:center">
             <input type="number" id="addAmount" placeholder="Amount ($)" style="padding:10px 16px; border:2px solid #C71585; border-radius:8px; font-size:16px; width:150px; background:rgba(255,255,255,0.9); color:#8B008B; font-weight:600" min="0" step="0.01">
             <button id="addSavingsBtn" style="padding:10px 20px; background:#C71585; color:white; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; box-shadow: 0 4px 8px rgba(199,21,133,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">Add Money</button>
@@ -575,6 +576,227 @@
           alert('Please enter a valid amount to subtract.');
         }
       });
+
+      // Add Class Earnings Modal
+      document.getElementById('addClassEarningsBtn').addEventListener('click', () => {
+        openAddClassEarningsModal();
+      });
+      
+      function openAddClassEarningsModal() {
+        const allWeeks = Storage.getAllWeeks();
+        const students = Storage.getStudents();
+        const studentsMap = {};
+        students.forEach(s => { studentsMap[s.id] = s; });
+        
+        // Get all sessions with earnings info
+        const allSessions = [];
+        allWeeks.forEach(wk => {
+          const sessions = Storage.getSessionsByWeek(wk);
+          sessions.forEach(s => {
+            if (!s.startTime || !s.endTime) return; // Skip sessions without times
+            
+            const student = studentsMap[s.studentId];
+            if (!student) return;
+            
+            // Calculate earnings
+            const dateStr = s.dateISO.split('T')[0];
+            const hrs = App.hoursBetween(`${dateStr}T${s.startTime}`, `${dateStr}T${s.endTime}`);
+            if (hrs <= 0 || isNaN(hrs) || !isFinite(hrs)) return;
+            
+            const rate = student.rate || 0;
+            const studentCurrency = student.currency || 'USD';
+            
+            let rateUSD = rate;
+            if (studentCurrency === 'KRW') {
+              let exchangeRate = 1300;
+              try {
+                const rateData = localStorage.getItem('tp:exchangeRate');
+                if (rateData) exchangeRate = parseFloat(rateData);
+              } catch (e) {}
+              rateUSD = rate / exchangeRate;
+            }
+            
+            const earningsUSD = hrs * rateUSD;
+            if (earningsUSD > 0) {
+              allSessions.push({
+                session: s,
+                student: student,
+                earnings: earningsUSD,
+                date: new Date(s.dateISO),
+                hours: hrs
+              });
+            }
+          });
+        });
+        
+        // Sort by date (newest first)
+        allSessions.sort((a, b) => b.date - a.date);
+        
+        // Get already added session IDs
+        const transactions = getTransactions();
+        const addedSessionIds = new Set(
+          transactions
+            .filter(t => t.type === 'class' && t.sessionId)
+            .map(t => t.sessionId)
+        );
+        
+        const modalBackdrop = document.createElement('div');
+        modalBackdrop.className = 'modal-backdrop';
+        modalBackdrop.style.zIndex = '10000';
+        
+        let modalHTML = `
+          <div class="modal" style="max-width:700px; max-height:90vh; overflow-y:auto">
+            <header style="position:sticky; top:0; background:white; z-index:10; border-bottom:2px solid #C71585">
+              <strong>Add Class Earnings to Italy Savings</strong>
+              <button id="closeAddClassModal" class="ghost">✕</button>
+            </header>
+            <div style="padding:20px">
+              <div style="margin-bottom:16px">
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px">
+                  <input type="checkbox" id="selectAllClasses" style="width:20px; height:20px; cursor:pointer" />
+                  <strong style="color:#8B008B">Select All</strong>
+                </label>
+              </div>
+              <div id="classesList" style="max-height:500px; overflow-y:auto">
+        `;
+        
+        if (allSessions.length === 0) {
+          modalHTML += `<div class="muted" style="text-align:center; padding:40px">No classes with valid time data found</div>`;
+        } else {
+          allSessions.forEach(({session, student, earnings, date, hours}) => {
+            const isAlreadyAdded = addedSessionIds.has(session.id);
+            const dateStr = date.toLocaleDateString();
+            const timeStr = `${session.startTime} - ${session.endTime}`;
+            
+            modalHTML += `
+              <div class="card" style="margin-bottom:12px; padding:16px; ${isAlreadyAdded ? 'opacity:0.6; background:#f5f5f5' : ''}">
+                <label style="display:flex; align-items:flex-start; gap:12px; cursor:${isAlreadyAdded ? 'not-allowed' : 'pointer'}">
+                  <input 
+                    type="checkbox" 
+                    class="class-checkbox" 
+                    data-session-id="${session.id}"
+                    data-earnings="${earnings}"
+                    data-session-title="${(session.title || 'Untitled').replace(/"/g, '&quot;')}"
+                    data-student-name="${student.name.replace(/"/g, '&quot;')}"
+                    ${isAlreadyAdded ? 'disabled' : ''}
+                    style="width:20px; height:20px; cursor:${isAlreadyAdded ? 'not-allowed' : 'pointer'}; margin-top:2px; flex-shrink:0" 
+                  />
+                  <div style="flex:1">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px">
+                      <div style="font-weight:600">${session.title || 'Untitled Class'}</div>
+                      <div style="font-size:18px; font-weight:700; color:#28a745">+$${earnings.toFixed(2)}</div>
+                    </div>
+                    <div style="font-size:12px; color:#666; margin-bottom:4px">
+                      ${student.name} • ${dateStr} • ${timeStr} • ${hours.toFixed(2)} hrs @ $${(student.currency === 'KRW' ? earnings / hours / (parseFloat(localStorage.getItem('tp:exchangeRate')) || 1300) * (parseFloat(localStorage.getItem('tp:exchangeRate')) || 1300) : student.rate || 0).toFixed(2)}/hr
+                    </div>
+                    ${isAlreadyAdded ? '<div style="font-size:11px; color:#999; font-style:italic">Already added to savings</div>' : ''}
+                  </div>
+                </label>
+              </div>
+            `;
+          });
+        }
+        
+        modalHTML += `
+              </div>
+              <div style="margin-top:20px; padding-top:20px; border-top:2px solid #C71585">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+                  <strong style="color:#8B008B">Selected Total:</strong>
+                  <div style="font-size:24px; font-weight:700; color:#28a745" id="selectedTotal">$0.00</div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end">
+                  <button class="ghost" id="cancelAddClasses">Cancel</button>
+                  <button id="addSelectedClasses" style="background:#C71585; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer">Add Selected to Savings</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        modalBackdrop.innerHTML = modalHTML;
+        document.body.appendChild(modalBackdrop);
+        
+        // Calculate and update selected total
+        function updateSelectedTotal() {
+          const checkboxes = modalBackdrop.querySelectorAll('.class-checkbox:not(:disabled):checked');
+          let total = 0;
+          checkboxes.forEach(cb => {
+            total += parseFloat(cb.dataset.earnings);
+          });
+          document.getElementById('selectedTotal').textContent = `$${total.toFixed(2)}`;
+        }
+        
+        // Select all checkbox
+        document.getElementById('selectAllClasses').addEventListener('change', (e) => {
+          const checkboxes = modalBackdrop.querySelectorAll('.class-checkbox:not(:disabled)');
+          checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateSelectedTotal();
+        });
+        
+        // Individual checkbox change
+        modalBackdrop.addEventListener('change', (e) => {
+          if (e.target.classList.contains('class-checkbox')) {
+            updateSelectedTotal();
+            // Uncheck select all if any individual is unchecked
+            const selectAll = document.getElementById('selectAllClasses');
+            const checkboxes = modalBackdrop.querySelectorAll('.class-checkbox:not(:disabled)');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            selectAll.checked = allChecked;
+          }
+        });
+        
+        // Close handlers
+        document.getElementById('closeAddClassModal').addEventListener('click', () => {
+          document.body.removeChild(modalBackdrop);
+        });
+        
+        document.getElementById('cancelAddClasses').addEventListener('click', () => {
+          document.body.removeChild(modalBackdrop);
+        });
+        
+        modalBackdrop.addEventListener('click', (e) => {
+          if (e.target === modalBackdrop) {
+            document.body.removeChild(modalBackdrop);
+          }
+        });
+        
+        // Add selected classes
+        document.getElementById('addSelectedClasses').addEventListener('click', () => {
+          const checkboxes = modalBackdrop.querySelectorAll('.class-checkbox:not(:disabled):checked');
+          if (checkboxes.length === 0) {
+            alert('Please select at least one class to add');
+            return;
+          }
+          
+          let addedCount = 0;
+          let totalAdded = 0;
+          
+          checkboxes.forEach(cb => {
+            const sessionId = cb.dataset.sessionId;
+            const earnings = parseFloat(cb.dataset.earnings);
+            const sessionTitle = cb.dataset.sessionTitle;
+            const studentName = cb.dataset.studentName;
+            
+            // Check if already added (shouldn't happen but just in case)
+            if (addedSessionIds.has(sessionId)) return;
+            
+            addTransaction('class', earnings, `Class: ${sessionTitle} - ${studentName}`, sessionId);
+            addedCount++;
+            totalAdded += earnings;
+          });
+          
+          if (addedCount > 0) {
+            alert(`Added ${addedCount} class(es) totaling $${totalAdded.toFixed(2)} to your Italy savings! ✈️`);
+            document.body.removeChild(modalBackdrop);
+            displaySavings(); // Refresh display
+          }
+        });
+        
+        // Initial total update
+        updateSelectedTotal();
+      }
 
       // View Details Modal
       document.getElementById('viewDetailsBtn').addEventListener('click', () => {
