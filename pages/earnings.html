@@ -238,10 +238,29 @@
           }
         });
         
-        if (byStudent.size === 0) {
-          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">No sessions for this week. Add sessions in the calendar.</td></tr>';
+        if (byStudent.size === 0 && sessions.length > 0) {
+          // Sessions exist but no valid hours calculated
+          body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">Sessions found but unable to calculate hours. Please ensure sessions have valid start and end times.</td></tr>';
           document.getElementById('netTotal').textContent = formatCurrency(0);
-          document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          const weekDateStr = weekKey.replace('week:', '');
+          const weekDate = new Date(weekDateStr + 'T00:00');
+          if (!isNaN(weekDate.getTime())) {
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const sunday = weekDate;
+            const saturday = App.addDays(sunday, 6);
+            let weekLabel;
+            if (sunday.getMonth() === saturday.getMonth()) {
+              weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${saturday.getDate()}, ${sunday.getFullYear()}`;
+            } else {
+              weekLabel = `${monthNames[sunday.getMonth()]} ${sunday.getDate()} - ${monthNames[saturday.getMonth()]} ${saturday.getDate()}, ${sunday.getFullYear()}`;
+            }
+            document.getElementById('totalWeek').textContent = weekLabel;
+          } else {
+            document.getElementById('totalWeek').textContent = weekKey.replace('week:', '');
+          }
+          return;
+        } else if (byStudent.size === 0) {
+          // This case is already handled above
           return;
         }
         
