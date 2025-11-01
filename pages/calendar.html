@@ -433,6 +433,91 @@
         if (!input || input.tagName !== 'INPUT') return; // Only apply to input elements, not textareas
         
         let lastValue = '';
+        let isOpeningPicker = false;
+        
+        // Helper to convert MM/DD/YYYY to YYYY-MM-DD
+        function toDateInputFormat(value) {
+          const match = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (match) {
+            const month = match[1].padStart(2, '0');
+            const day = match[2].padStart(2, '0');
+            const year = match[3];
+            return `${year}-${month}-${day}`;
+          }
+          return '';
+        }
+        
+        // Helper to convert YYYY-MM-DD to MM/DD/YYYY
+        function fromDateInputFormat(value) {
+          const match = value.match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (match) {
+            return `${match[2]}/${match[3]}/${match[1]}`;
+          }
+          return value;
+        }
+        
+        // Open date picker on click
+        input.addEventListener('click', (e) => {
+          // Only open picker if not typing
+          if (isOpeningPicker) return;
+          
+          // Check if user is clicking to select text or if input is already focused
+          if (document.activeElement === input && input.selectionStart !== input.selectionEnd) {
+            return; // User is selecting text, don't open picker
+          }
+          
+          // Small delay to distinguish between click and typing
+          setTimeout(() => {
+            if (document.activeElement === input) {
+              // Create a temporary date input for the picker
+              const tempInput = document.createElement('input');
+              tempInput.type = 'date';
+              tempInput.style.position = 'absolute';
+              tempInput.style.opacity = '0';
+              tempInput.style.pointerEvents = 'none';
+              tempInput.style.width = '0';
+              tempInput.style.height = '0';
+              
+              // Set value from current input
+              const currentValue = input.value;
+              if (currentValue) {
+                const dateFormat = toDateInputFormat(currentValue);
+                if (dateFormat) {
+                  tempInput.value = dateFormat;
+                }
+              }
+              
+              document.body.appendChild(tempInput);
+              
+              // Show picker
+              tempInput.showPicker();
+              
+              // Listen for changes
+              tempInput.addEventListener('change', () => {
+                if (tempInput.value) {
+                  input.value = fromDateInputFormat(tempInput.value);
+                  // Trigger input event for any listeners
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                document.body.removeChild(tempInput);
+                isOpeningPicker = false;
+              });
+              
+              // Remove on blur if cancelled
+              tempInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                  if (document.body.contains(tempInput)) {
+                    document.body.removeChild(tempInput);
+                    isOpeningPicker = false;
+                  }
+                }, 100);
+              });
+              
+              isOpeningPicker = true;
+            }
+          }, 100);
+        });
+        
         input.addEventListener('input', (e) => {
           const target = e.target;
           let value = target.value.replace(/\D/g, ''); // Only digits
