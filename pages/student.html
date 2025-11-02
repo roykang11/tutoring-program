@@ -631,24 +631,24 @@
             <div class="grid-2" style="gap:16px">
             <div>
               <label>Date</label>
-                <input id="editDate" type="text" placeholder="MM/DD/YYYY" maxlength="10" value="${formatDateForDisplay(session.dateISO.slice(0,10))}" />
+                <input id="editDate" type="text" placeholder="MM/DD/YYYY" maxlength="10" />
             </div>
             <div>
               <label>Start Time</label>
-                <input id="editStart" type="text" placeholder="HH:MM" maxlength="5" value="${session.startTime || ''}" />
+                <input id="editStart" type="text" placeholder="HH:MM" maxlength="5" />
             </div>
             <div>
               <label>End Time</label>
-                <input id="editEnd" type="text" placeholder="HH:MM" maxlength="5" value="${session.endTime || ''}" />
+                <input id="editEnd" type="text" placeholder="HH:MM" maxlength="5" />
             </div>
             </div>
             <div style="margin-top:16px">
               <label>Materials covered</label>
-              <textarea id="editMaterials" rows="4">${session.materials || ''}</textarea>
+              <textarea id="editMaterials" rows="4"></textarea>
             </div>
             <div style="margin-top:16px">
               <label>Notes</label>
-              <textarea id="editNotes" rows="4">${session.notes || ''}</textarea>
+              <textarea id="editNotes" rows="4"></textarea>
           </div>
           <footer>
               <button type="button" id="saveClassEdit">Save</button>
@@ -657,6 +657,13 @@
         
         document.body.appendChild(modalBackdrop);
         modalBackdrop.style.display = 'flex';
+        
+        // Set input and textarea values to avoid HTML injection issues
+        document.getElementById('editDate').value = formatDateForDisplay(session.dateISO.slice(0,10));
+        document.getElementById('editStart').value = session.startTime || '';
+        document.getElementById('editEnd').value = session.endTime || '';
+        document.getElementById('editMaterials').value = session.materials || '';
+        document.getElementById('editNotes').value = session.notes || '';
         
         // Setup date and time inputs for edit modal
         setTimeout(() => {
