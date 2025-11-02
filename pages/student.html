@@ -224,27 +224,28 @@
             </div>
           </div>
         `).join('');
-
-        container.addEventListener('click', (e) => {
-          const btn = e.target.closest('button');
-          if (!btn) return;
-          const action = btn.dataset.action;
-          const weekKey = btn.dataset.week;
-          const id = btn.dataset.id;
-          const sessions = Storage.getSessionsByWeek(weekKey);
-          const idx = sessions.findIndex(x => x.id === id);
-          if (idx < 0) return;
-          
-          if (action === 'edit') {
-            openClassEditModal(sessions[idx], weekKey, idx);
-          } else if (action === 'delete') {
-            if (!confirm('Delete this session?')) return;
-            sessions.splice(idx, 1);
-            Storage.saveSessionsByWeek(weekKey, sessions);
-            renderSessions();
-          }
-        });
       }
+
+      // Event listener for session actions (edit/delete) - only set up once
+      document.getElementById('sessions').addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const weekKey = btn.dataset.week;
+        const id = btn.dataset.id;
+        const sessions = Storage.getSessionsByWeek(weekKey);
+        const idx = sessions.findIndex(x => x.id === id);
+        if (idx < 0) return;
+        
+        if (action === 'edit') {
+          openClassEditModal(sessions[idx], weekKey, idx);
+        } else if (action === 'delete') {
+          if (!confirm('Delete this session?')) return;
+          sessions.splice(idx, 1);
+          Storage.saveSessionsByWeek(weekKey, sessions);
+          renderSessions();
+        }
+      });
 
       renderSessions();
 
