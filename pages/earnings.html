@@ -459,19 +459,15 @@
             
             // Check if this session's date is in the current month
             // Parse dateISO string (format: YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DD)
-            let sessionDate;
-            try {
-              const dateStr = s.dateISO.split('T')[0]; // Get just YYYY-MM-DD part
-              sessionDate = new Date(dateStr + 'T00:00:00');
-            } catch (e) {
-              sessionDate = new Date(s.dateISO);
-            }
+            // Parse date components directly to avoid timezone issues
+            const dateStr = s.dateISO.slice(0, 10); // YYYY-MM-DD
+            const sessionYear = parseInt(dateStr.slice(0, 4));
+            const sessionMonth = parseInt(dateStr.slice(5, 7)) - 1; // Month is 0-indexed
             
             // Check if session is in current month
-            if (sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear) {
+            if (sessionYear === currentYear && sessionMonth === currentMonth) {
               try {
                 // Calculate hours from start and end times
-                const dateStr = s.dateISO.split('T')[0]; // Get YYYY-MM-DD part
                 const hrs = App.hoursBetween(`${dateStr}T${s.startTime}`, `${dateStr}T${s.endTime}`);
                 
                 if (hrs > 0 && !isNaN(hrs) && isFinite(hrs)) {
@@ -654,11 +650,18 @@
             
             const earningsUSD = hrs * rateUSD;
             if (earningsUSD > 0) {
+              // Parse date components directly to avoid timezone issues
+              const dateStr = s.dateISO.slice(0, 10); // YYYY-MM-DD
+              const sessionYear = parseInt(dateStr.slice(0, 4));
+              const sessionMonth = parseInt(dateStr.slice(5, 7)) - 1; // Month is 0-indexed
+              const sessionDay = parseInt(dateStr.slice(8, 10));
+              const sessionDate = new Date(sessionYear, sessionMonth, sessionDay);
+              
               allSessions.push({
                 session: s,
                 student: student,
                 earnings: earningsUSD,
-                date: new Date(s.dateISO),
+                date: sessionDate,
                 hours: hrs
               });
             }

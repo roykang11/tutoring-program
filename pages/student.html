@@ -181,8 +181,21 @@
 
         // Sort by date/time for display (recent first)
         const sortedForDisplay = mine.sort((a, b) => {
-          const ta = new Date(`${a.dateISO.slice(0,10)}T${a.startTime || '00:00'}`).getTime();
-          const tb = new Date(`${b.dateISO.slice(0,10)}T${b.startTime || '00:00'}`).getTime();
+          // Parse date components directly to avoid timezone issues
+          const aDateStr = a.dateISO.slice(0, 10);
+          const aYear = parseInt(aDateStr.slice(0, 4));
+          const aMonth = parseInt(aDateStr.slice(5, 7)) - 1;
+          const aDay = parseInt(aDateStr.slice(8, 10));
+          const aTime = (a.startTime || '00:00').split(':');
+          const ta = new Date(aYear, aMonth, aDay, parseInt(aTime[0]) || 0, parseInt(aTime[1]) || 0).getTime();
+          
+          const bDateStr = b.dateISO.slice(0, 10);
+          const bYear = parseInt(bDateStr.slice(0, 4));
+          const bMonth = parseInt(bDateStr.slice(5, 7)) - 1;
+          const bDay = parseInt(bDateStr.slice(8, 10));
+          const bTime = (b.startTime || '00:00').split(':');
+          const tb = new Date(bYear, bMonth, bDay, parseInt(bTime[0]) || 0, parseInt(bTime[1]) || 0).getTime();
+          
           return tb - ta; // recent first
         });
 
