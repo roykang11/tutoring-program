@@ -464,8 +464,19 @@
               
               document.body.appendChild(tempInput);
               
-              // Show picker
-              tempInput.showPicker();
+              // Show picker (if supported by browser)
+              try {
+                if (tempInput.showPicker) {
+                  tempInput.showPicker();
+                } else {
+                  tempInput.focus();
+                  tempInput.click();
+                }
+              } catch (e) {
+                console.log('Date picker not supported, falling back to click');
+                tempInput.focus();
+                tempInput.click();
+              }
               
               // Listen for changes
               tempInput.addEventListener('change', () => {
