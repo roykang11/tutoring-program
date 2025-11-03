@@ -307,11 +307,17 @@
             return;
           }
           if (!newStart) {
-            alert('Please enter a valid start time (HH:MM)');
+            alert('Please enter a valid start time (HH:MM or 24:MM format)');
             return;
           }
           if (!newEnd) {
-            alert('Please enter a valid end time (HH:MM)');
+            alert('Please enter a valid end time (HH:MM or 24:MM format)');
+            return;
+          }
+          
+          // Validate time order
+          if (!validateTimeOrder(newStart, newEnd)) {
+            alert('End time cannot be before start time. Use 24:MM format (e.g., 24:30) for times after midnight.');
             return;
           }
           
@@ -415,16 +421,56 @@
 
       // Helper function to format time (HH:MM)
       function formatTimeInput(timeStr) {
-        // If already in HH:MM format, return as is
+        let result = null;
+        
+        // If already in HH:MM format, use it
         if (/^\d{2}:\d{2}$/.test(timeStr)) {
-          return timeStr;
+          result = timeStr;
+        } else {
+          // If just digits, try to format
+          const digits = timeStr.replace(/\D/g, '');
+          if (digits.length >= 4) {
+            result = digits.slice(0, 2) + ':' + digits.slice(2, 4);
+          }
         }
-        // If just digits, try to format
-        const digits = timeStr.replace(/\D/g, '');
-        if (digits.length >= 4) {
-          return digits.slice(0, 2) + ':' + digits.slice(2, 4);
+        
+        if (!result) return null;
+        
+        // Handle 24-hour format (24:XX to 00:XX)
+        const [hours, minutes] = result.split(':').map(Number);
+        if (hours >= 24) {
+          // Convert 24:XX to 00:XX (represents next day)
+          const newHours = hours - 24;
+          result = `${String(newHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         }
-        return null;
+        
+        // Validate hours and minutes
+        const [finalHours, finalMinutes] = result.split(':').map(Number);
+        if (finalHours > 23 || finalMinutes > 59) {
+          return null;
+        }
+        
+        return result;
+      }
+      
+      // Helper function to validate time order
+      function validateTimeOrder(startTime, endTime) {
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+        
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        
+        // If end is less than start on same day, it's invalid unless crossing midnight
+        // Valid midnight crossing: start hour >= 20 (8 PM or later) and end hour <= 6 (6 AM or earlier)
+        if (endMinutes < startMinutes) {
+          const isLikelyMidnightCrossing = startH >= 20 && endH <= 6;
+          if (!isLikelyMidnightCrossing) {
+            return false; // Invalid: end time before start time
+          }
+        }
+        
+        return true; // Valid
       }
 
       // Date input with auto-advance: MM -> DD -> YYYY
