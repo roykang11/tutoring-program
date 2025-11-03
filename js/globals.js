@@ -60,11 +60,13 @@
     if (cacheInitialized) return;
     if (window.FirebaseStorage) {
       try {
-        await window.FirebaseStorage.waitForAuth();
-        if (window.FirebaseStorage.isFirebaseActive()) {
+        // Wait for Firebase to initialize
+        const firebaseReady = await window.FirebaseStorage.init();
+        if (firebaseReady && window.FirebaseStorage.isFirebaseActive()) {
           await window.FirebaseStorage.initCache();
           studentsCache = window.FirebaseStorage.getStudents();
           sessionsCache = window.FirebaseStorage._sessionsCache || {};
+          console.log('✅ Loaded data from Firebase');
         }
       } catch (e) {
         console.error('Failed to initialize Firebase cache:', e);

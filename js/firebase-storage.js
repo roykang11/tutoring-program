@@ -2,35 +2,103 @@
 // Falls back to localStorage if Firebase is not configured
 
 (function() {
-  // Check if Firebase is available
-  const isFirebaseAvailable = window.FIREBASE_CONFIGURED && typeof firebase !== 'undefined';
-  
   let db = null;
   let auth = null;
   let currentUser = null;
+  let isInitializing = false;
+  let initPromise = null;
   
-  // Initialize Firebase if available
-  if (isFirebaseAvailable) {
-    try {
-      // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      auth = firebase.auth();
-      
-      // Use anonymous authentication for simplicity
-      auth.signInAnonymously()
-        .then(() => {
+  // Initialize Firebase (called when both config and SDK are ready)
+  async function initializeFirebase() {
+    if (isInitializing) return initPromise;
+    if (db !== null) return Promise.resolve(true);
+    
+    isInitializing = true;
+    initPromise = new Promise(async (resolve) => {
+      try {
+        // Check if Firebase config exists
+        if (typeof firebaseConfig === 'undefined') {
+          console.log('Firebase not configured - using localStorage only');
+          isInitializing = false;
+          resolve(false);
+          return;
+        }
+        
+        // Wait for Firebase SDK to load
+        if (typeof firebase === 'undefined') {
+          console.log('Waiting for Firebase SDK to load...');
+          // Wait up to 5 seconds for Firebase to load
+          let attempts = 0;
+          while (typeof firebase === 'undefined' && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          if (typeof firebase === 'undefined') {
+            console.error('Firebase SDK not loaded - using localStorage only');
+            isInitializing = false;
+            resolve(false);
+            return;
+          }
+        }
+        
+        // Initialize Firebase
+        try {
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore();
+          auth = firebase.auth();
+          
+          // Enable offline persistence
+          db.enablePersistence().catch(err => {
+            if (err.code === 'failed-precondition') {
+              console.warn('Firebase persistence requires single tab');
+            } else if (err.code === 'unimplemented') {
+              console.warn('Firebase persistence not supported in this browser');
+            }
+          });
+          
+          // Use anonymous authentication
+          await auth.signInAnonymously();
           currentUser = auth.currentUser;
-          console.log('Firebase connected - data will sync across devices');
-        })
-        .catch((error) => {
-          console.error('Firebase auth error:', error);
-          // Fall back to localStorage
+          
+          console.log('✅ Firebase connected - data will sync across devices');
+          isInitializing = false;
+          resolve(true);
+        } catch (initError) {
+          console.error('Firebase initialization error:', initError);
           db = null;
-        });
-    } catch (error) {
-      console.error('Firebase initialization error:', error);
-      db = null;
+          auth = null;
+          isInitializing = false;
+          resolve(false);
+        }
+      } catch (error) {
+        console.error('Firebase setup error:', error);
+        db = null;
+        auth = null;
+        isInitializing = false;
+        resolve(false);
+      }
+    });
+    
+    return initPromise;
+  }
+  
+  // Auto-initialize when both config and SDK are ready
+  function tryAutoInit() {
+    if (typeof firebaseConfig !== 'undefined' && typeof firebase !== 'undefined') {
+      initializeFirebase();
+    }
+  }
+  
+  // Try initialization immediately
+  if (typeof firebaseConfig !== 'undefined') {
+    if (typeof firebase !== 'undefined') {
+      initializeFirebase();
+    } else {
+      // Wait for Firebase SDK to load
+      window.addEventListener('load', tryAutoInit);
+      // Also try after a short delay
+      setTimeout(tryAutoInit, 500);
     }
   }
   
@@ -220,6 +288,8 @@
     
     // Wait for auth to complete
     async waitForAuth() {
+      // First ensure Firebase is initialized
+      await initializeFirebase();
       if (!auth) return false;
       if (currentUser) return true;
       return new Promise((resolve) => {
@@ -234,6 +304,11 @@
           resolve(false);
         }, 5000);
       });
+    },
+    
+    // Initialize Firebase (public method)
+    async init() {
+      return await initializeFirebase();
     }
   };
   
