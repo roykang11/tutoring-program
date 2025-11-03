@@ -49,15 +49,89 @@
 
   const KEY_STUDENTS = 'tp:students';
   const KEY_SESSIONS = 'tp:sessions';
+  
+  // Cache for Firebase data (to maintain sync API)
+  let studentsCache = null;
+  let sessionsCache = null;
+  let cacheInitialized = false;
+  
+  // Initialize cache from Firebase if available
+  async function initCache() {
+    if (cacheInitialized) return;
+    if (window.FirebaseStorage) {
+      try {
+        await window.FirebaseStorage.waitForAuth();
+        if (window.FirebaseStorage.isFirebaseActive()) {
+          await window.FirebaseStorage.initCache();
+          studentsCache = window.FirebaseStorage.getStudents();
+          sessionsCache = window.FirebaseStorage._sessionsCache || {};
+        }
+      } catch (e) {
+        console.error('Failed to initialize Firebase cache:', e);
+      }
+    }
+    cacheInitialized = true;
+  }
+  
   function read(key, fallback){ try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
   function write(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+  
   const Storage = {
-    getStudents(){ return read(KEY_STUDENTS, []); },
-    saveStudents(students){ write(KEY_STUDENTS, students); },
-    upsertStudent(student){ const arr=read(KEY_STUDENTS,[]); const i=arr.findIndex(s=>s.id===student.id); if(i>=0) arr[i]=student; else arr.push(student); write(KEY_STUDENTS,arr); },
-    getSessionsByWeek(weekKey){ const all=read(KEY_SESSIONS,{}); return all[weekKey]||[]; },
-    saveSessionsByWeek(weekKey, sessions){ const all=read(KEY_SESSIONS,{}); all[weekKey]=sessions; write(KEY_SESSIONS, all); },
-    getAllWeeks(){ const all=read(KEY_SESSIONS,{}); return Object.keys(all).sort(); },
+    // Initialize - call this early in page load (non-blocking)
+    init() {
+      initCache(); // Fire and forget - doesn't block page load
+    },
+    
+    getStudents(){
+      if (window.FirebaseStorage && window.FirebaseStorage.isFirebaseActive() && studentsCache !== null) {
+        return studentsCache;
+      }
+      return read(KEY_STUDENTS, []);
+    },
+    
+    saveStudents(students){
+      studentsCache = students;
+      if (window.FirebaseStorage && window.FirebaseStorage.isFirebaseActive()) {
+        window.FirebaseStorage.saveStudents(students);
+      } else {
+        write(KEY_STUDENTS, students);
+      }
+    },
+    
+    upsertStudent(student){
+      const arr = this.getStudents();
+      const i = arr.findIndex(s=>s.id===student.id);
+      if(i>=0) arr[i] = student; else arr.push(student);
+      this.saveStudents(arr);
+    },
+    
+    getSessionsByWeek(weekKey){
+      if (window.FirebaseStorage && window.FirebaseStorage.isFirebaseActive() && sessionsCache !== null) {
+        return sessionsCache[weekKey] || [];
+      }
+      const all = read(KEY_SESSIONS, {});
+      return all[weekKey] || [];
+    },
+    
+    saveSessionsByWeek(weekKey, sessions){
+      if (!sessionsCache) sessionsCache = {};
+      sessionsCache[weekKey] = sessions;
+      if (window.FirebaseStorage && window.FirebaseStorage.isFirebaseActive()) {
+        window.FirebaseStorage.saveSessionsByWeek(weekKey, sessions);
+      } else {
+        const all = read(KEY_SESSIONS, {});
+        all[weekKey] = sessions;
+        write(KEY_SESSIONS, all);
+      }
+    },
+    
+    getAllWeeks(){
+      if (window.FirebaseStorage && window.FirebaseStorage.isFirebaseActive() && sessionsCache !== null) {
+        return Object.keys(sessionsCache).sort();
+      }
+      const all = read(KEY_SESSIONS, {});
+      return Object.keys(all).sort();
+    },
   };
   window.Storage = Storage;
 })();

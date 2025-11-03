@@ -37,8 +37,16 @@
       </div>
     </main>
 
+    <!-- Firebase SDK (optional - only needed if firebase-config.js is configured) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/firebase-storage.js"></script>
     <script src="../js/globals.js"></script>
     <script>
+      // Initialize Storage (loads Firebase data if configured)
+      Storage.init();
 
       const currentWeek = document.getElementById('currentWeek');
       const head = document.getElementById('calendarHead');
