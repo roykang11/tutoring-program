@@ -7,17 +7,15 @@
 // 5. Copy your Firebase config and paste it below
 // 6. Uncomment the firebaseConfig object and replace with your values
 
-// Uncomment and fill in your Firebase config:
-/*
+// Firebase config
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAa8Zvo33gmXnHesp3FrFUMmJ_azfQZJl8",
+  authDomain: "tutoring-program.firebaseapp.com",
+  projectId: "tutoring-program",
+  storageBucket: "tutoring-program.firebasestorage.app",
+  messagingSenderId: "515222654573",
+  appId: "1:515222654573:web:9545239a5ca28e73e13964"
 };
-*/
 
 // Check if Firebase is configured
 window.FIREBASE_CONFIGURED = typeof firebaseConfig !== 'undefined';
